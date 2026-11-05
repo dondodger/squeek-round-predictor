@@ -100,3 +100,5 @@ No build step, no dependencies, Node 18+.
 ## License
 
 MIT
+
+squeekchain-project: 2bf2a5f0-a2d3-42b5-bac6-ce24b755a787
