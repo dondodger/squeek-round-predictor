@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Squeek Round Predictor</title>
+<meta name="description" content="Predict what Squeektoshi the hamster does in each 10-minute Squeekchain round. Results read straight from SqueekCore on Sepolia. A Squeekchain round oracle by the community." />
+<meta name="squeekchain-verify" content="PENDING_CHALLENGE" />
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+<header class="wrap">
+  <div class="brand">
+    <span class="hamster">🐹</span>
+    <div>
+      <h1>Squeek Round Predictor</h1>
+      <p class="sub">Call what the hamster does this round. Outcomes read straight from SqueekCore on Sepolia.</p>
+    </div>
+  </div>
+  <div class="wallet">
+    <button id="connectBtn" class="btn primary">Connect Wallet</button>
+    <span id="walletLabel" class="addr"></span>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="live card">
+    <div class="live-head">
+      <h2>Live wheel</h2>
+      <span id="liveDot" class="dot"></span>
+      <span id="liveState">—</span>
+    </div>
+    <div class="grid">
+      <div class="stat"><label>Core status</label><b id="coreStatus">—</b></div>
+      <div class="stat"><label>RPM</label><b id="rpm">—</b></div>
+      <div class="stat"><label>Round duration</label><b id="roundDur">—</b></div>
+      <div class="stat"><label>Settled through round</label><b id="settled">—</b></div>
+      <div class="stat"><label>Block height</label><b id="blockHeight">—</b></div>
+      <div class="stat"><label>Work / 1000 blocks</label><b id="wpk">—</b></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Round <span id="curRound">—</span> · your call</h2>
+    <p class="hint">Rounds last 10 minutes. Pick what Squeektoshi does next, sign with your wallet (no gas), and your call is locked to the round.</p>
+    <div class="choices">
+      <button class="choice" data-c="nap"><span>💤</span><b>Nap</b><i>0 wheel passes</i></button>
+      <button class="choice" data-c="jog"><span>🐾</span><b>Jog</b><i>1 – 499</i></button>
+      <button class="choice" data-c="zoomies"><span>🔥</span><b>Zoomies</b><i>500+</i></button>
+    </div>
+    <div class="row">
+      <button id="lockBtn" class="btn primary" disabled>Sign &amp; lock my call</button>
+      <span id="lockMsg" class="msg"></span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Your record</h2>
+    <div class="grid">
+      <div class="stat"><label>Calls locked</label><b id="myCalls">0</b></div>
+      <div class="stat"><label>Correct</label><b id="myHits">0</b></div>
+      <div class="stat"><label>Accuracy</label><b id="myAcc">—</b></div>
+    </div>
+    <table id="myTable">
+      <thead><tr><th>Round</th><th>Your call</th><th>Outcome</th><th>Result</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Recent rounds (on-chain)</h2>
+    <p class="hint">Read from SqueekCore on Sepolia via the public Squeekchain API. Last update <span id="upd">—</span>.</p>
+    <table id="rounds">
+      <thead><tr><th>Round</th><th>Status</th><th>Passes</th><th>Outcome</th><th>Tx</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="card about">
+    <h2>How this uses Squeekchain</h2>
+    <ul>
+      <li>Reads <code>/v1/status</code> for live wheel telemetry (core status, RPM, block height, work per 1000 blocks).</li>
+      <li>Reads <code>/v1/settlements</code> and <code>/v1/core</code> for settled rounds, difficulty and the round schedule.</li>
+      <li>Verifies settled rounds against <b>SqueekCore</b> <code>0xfd6c166d4b8e2962e65746a13e5a0797cd4de0c4</code> on Sepolia (chain 11155111), linking each result to its settlement transaction.</li>
+      <li>Your call is locked with a plain <b>wallet signature</b> (EIP-191, zero gas, no private key ever leaves your wallet) and kept locally against the round number.</li>
+      <li>Optional: send a zero-value <b>SQK approve</b> on Sepolia to stamp your call on-chain.</li>
+    </ul>
+    <p class="hint">Independent community project. Not affiliated with the Squeekchain team.</p>
+  </section>
+</main>
+
+<footer class="wrap">
+  <span>Built for Squeekchain Genesis · Code lane</span>
+  <a id="repoLink" href="#" target="_blank" rel="noopener">Source</a>
+</footer>
+
+<script src="/app.js"></script>
+</body>
+</html>

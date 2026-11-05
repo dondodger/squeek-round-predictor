@@ -1,0 +1,14 @@
+{
+  "name": "squeek-round-predictor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Predict what Squeektoshi the hamster does each 10-minute Squeekchain round. Outcomes read straight from SqueekCore on Sepolia.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
