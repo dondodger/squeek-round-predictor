@@ -1,12 +1,29 @@
 {
-  "name": "squeek-round-predictor",
+  "name": "squeek-round",
   "version": "1.0.0",
   "private": true,
-  "description": "Predict what Squeektoshi the hamster does each 10-minute Squeekchain round. Outcomes read straight from SqueekCore on Sepolia.",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
+  "description": "Squeekchain round tool — read the live wheel, lock a call for the current 10-minute round, score it against what the wheel did.",
+  "bin": {
+    "squeek-round": "bin/squeek-round.js"
   },
+  "main": "bin/squeek-round.js",
+  "files": [
+    "bin/",
+    "public/",
+    "server.js",
+    "README.md"
+  ],
+  "scripts": {
+    "start": "node server.js",
+    "cli": "node bin/squeek-round.js"
+  },
+  "keywords": [
+    "squeekchain",
+    "sepolia",
+    "cli",
+    "hamster",
+    "round"
+  ],
   "engines": {
     "node": ">=18"
   },
