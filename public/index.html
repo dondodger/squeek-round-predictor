@@ -1,97 +1,401 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>squeek-round — Squeekchain round tool</title>
-<meta name="description" content="squeek-round reads the live Squeekchain wheel, lets you lock a call for the current 10-minute round, and scores it against what the wheel did. CLI + dashboard, results read straight from SqueekCore on Sepolia." />
+<title>squeek-round — Squeekchain round predictor & live wheel data</title>
+<meta name="description" content="squeek-round reads Squeekchain's live wheel from the public API, lets you lock a call for the current 10-minute round, and scores it against SqueekCore on Sepolia. Free, no gas, no sign-up. Community project, not an official Squeekchain site." />
+
+<!-- Squeekchain Genesis project identity — MUST NOT CHANGE -->
 <meta name="squeekchain-project" content="2bf2a5f0-a2d3-42b5-bac6-ce24b755a787" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="/style.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%230B0B0D'/%3E%3Ccircle cx='16' cy='18' r='7' fill='%23FFC146'/%3E%3Ccircle cx='13' cy='17' r='1.3' fill='%230B0B0D'/%3E%3Ccircle cx='19' cy='17' r='1.3' fill='%230B0B0D'/%3E%3Ccircle cx='16' cy='21' r='1' fill='%235A7CF8'/%3E%3C/svg%3E" />
 </head>
 <body>
-<header class="wrap">
-  <div class="brand">
-    <span class="hamster">🐹</span>
-    <div>
-      <h1>squeek-round</h1>
-      <p class="sub">Read the live wheel, lock a call, score it against what the wheel did. CLI + dashboard.</p>
-    </div>
-  </div>
-  <div class="wallet">
-    <button id="connectBtn" class="btn primary">Connect Wallet</button>
+<div class="grid-bg" aria-hidden="true"></div>
+<div class="glow-a" aria-hidden="true"></div>
+<div class="glow-b" aria-hidden="true"></div>
+
+<a class="skip" href="#predict">Skip to the predictor</a>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="/">
+      <span class="logo" aria-hidden="true">
+        <svg viewBox="0 0 40 40" width="34" height="34">
+          <circle cx="20" cy="20" r="19" fill="#101014" stroke="#FFC146" stroke-width="1.2"/>
+          <path d="M13 14c0-3.3 2.2-5.5 5-5.5s4.6 1.7 5.4 4" fill="none" stroke="#FFC146" stroke-width="2" stroke-linecap="round"/>
+          <ellipse cx="20" cy="22" rx="8" ry="7.2" fill="#FFC146"/>
+          <circle cx="17" cy="21" r="1.5" fill="#0B0B0D"/>
+          <circle cx="23" cy="21" r="1.5" fill="#0B0B0D"/>
+          <circle cx="20" cy="25" r="1.2" fill="#5A7CF8"/>
+        </svg>
+      </span>
+      <span class="brand-txt">
+        <b>squeek-round</b>
+        <i>built on squeekchain</i>
+      </span>
+    </a>
+
+    <nav class="nav">
+    <a href="#how">How it reads the chain</a>
+    <a href="#predict">Call the round</a>
+    <a href="#chain">Live data</a>
+    </nav>
+
+    <div class="top-right">
+    <span id="netPill" class="pill"><span class="pill-dot"></span><span id="netTxt">Sepolia</span></span>
+    <button id="connectBtn" class="btn btn-ghost">Connect wallet</button>
     <span id="walletLabel" class="addr"></span>
-  </div>
-</header>
-
-<main class="wrap">
-  <section class="live card">
-    <div class="live-head">
-      <h2>Live wheel</h2>
-      <span id="liveDot" class="dot"></span>
-      <span id="liveState">—</span>
     </div>
-    <div class="grid">
-      <div class="stat"><label>Core status</label><b id="coreStatus">—</b></div>
-      <div class="stat"><label>RPM</label><b id="rpm">—</b></div>
-      <div class="stat"><label>Round duration</label><b id="roundDur">—</b></div>
-      <div class="stat"><label>Settled through round</label><b id="settled">—</b></div>
-      <div class="stat"><label>Block height</label><b id="blockHeight">—</b></div>
-      <div class="stat"><label>Work / 1000 blocks</label><b id="wpk">—</b></div>
+    </div>
+    </header>
+
+    <main>
+
+    <!-- ================= HERO ================= -->
+    <section class="hero">
+    <div class="hero-in">
+    <div class="hero-copy">
+      <p class="eyebrow"><span class="blip"></span> community project · not an official Squeekchain site</p>
+      <h1>Read the wheel.<br /><em>Call the round.</em></h1>
+      <p class="lede">
+        <b>squeek-round</b> reads Squeekchain's live wheel straight from the public API,
+        lets you lock a call for the current 10-minute round, and grades you against what
+        the wheel actually did — every result off <b>SqueekCore</b> on Sepolia.
+        </p>
+        <div class="cta">
+        <a class="btn btn-gold" href="#predict">Lock a call</a>
+        <a class="btn btn-ghost" href="#how">See how it works &rarr;</a>
+        </div>
+      <dl class="hero-facts">
+        <div><dt>Round length</dt><dd id="fRound">10 min</dd></div>
+        <div><dt>Block height</dt><dd id="fBlock">&mdash;</dd></div>
+        <div><dt>Wheel speed</dt><dd id="fRpm">&mdash;</dd></div>
+      </dl>
+    </div>
+
+    <!-- live round stage -->
+    <div class="stage" id="stage">
+      <div class="stage-hud">
+        <span class="state-badge idle" id="stateBadge">IDLE</span>
+        <span class="hud-tag" id="hudMode">reading the wheel</span>
+        <span class="hud-live"><span id="liveDot" class="dot"></span><span id="liveState">connecting</span></span>
+      </div>
+
+      <div class="wheel-readout" role="img" aria-label="Live Squeekchain wheel telemetry">
+        <div class="ro-ring">
+          <svg viewBox="0 0 200 200" class="ro-dial" aria-hidden="true">
+            <circle cx="100" cy="100" r="88" class="ro-track" />
+            <circle cx="100" cy="100" r="88" class="ro-fill" id="roFill" />
+            <circle cx="100" cy="100" r="74" class="ro-inner" />
+          </svg>
+          <div class="ro-center">
+            <b id="roRpm">&mdash;</b>
+            <span>rpm</span>
+          </div>
+        </div>
+        <div class="ro-stats">
+          <div class="ro-stat">
+            <span class="ro-k">wheel state</span>
+            <b id="roState" class="state-badge idle">PARKED</b>
+          </div>
+          <div class="ro-stat">
+            <span class="ro-k">distance</span>
+            <b id="roDist">&mdash;</b>
+          </div>
+          <div class="ro-stat">
+            <span class="ro-k">work units</span>
+            <b id="roWork">&mdash;</b>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage-caption">
+        <span class="cap-name"><b>Live wheel feed</b> &middot; squeekchain</span>
+        <span class="cap-sep">&middot;</span>
+        <span class="cap-mode" id="capMode">connecting</span>
+      </div>
+
+        <div class="stage-meter">
+          <div class="meter-head">
+            <span>Work to next block</span>
+            <b id="meterPct">&mdash;</b>
+          </div>
+          <div class="meter"><i id="meterFill"></i></div>
+          <div class="meter-foot">
+            <span id="meterLeft">&mdash; work left</span>
+            <a id="blockLink" href="#" target="_blank" rel="noopener">block &mdash;</a>
+          </div>
+        </div>
+
+        <div class="turn-box">
+          <p class="turn-help">
+            Squeekchain's proof of work is a physical wheel. This reading comes
+            straight off its <b>wheel.counter</b> module &mdash; every rpm, metre
+            and work unit below is the optical sensor, not a clock.
+            <span id="turnCount">0 rpm</span>
+          </p>
+        </div>
+      </div>
     </div>
   </section>
 
-  <section class="card">
-    <h2>Round <span id="curRound">—</span> · your call</h2>
-    <p class="hint">Rounds last 10 minutes. Pick what Squeektoshi does next, sign with your wallet (no gas), and your call is locked to the round.</p>
-    <div class="choices">
-      <button class="choice" data-c="nap"><span>💤</span><b>Nap</b><i>0 wheel passes</i></button>
-      <button class="choice" data-c="jog"><span>🐾</span><b>Jog</b><i>1 – 499</i></button>
-      <button class="choice" data-c="zoomies"><span>🔥</span><b>Zoomies</b><i>500+</i></button>
-    </div>
-    <div class="row">
-      <button id="lockBtn" class="btn primary" disabled>Sign &amp; lock my call</button>
-      <span id="lockMsg" class="msg"></span>
+  <!-- ================= HOW IT WORKS ================= -->
+  <section class="band" id="how">
+    <div class="band-in">
+      <h2 class="band-title">How to play</h2>
+      <p class="band-sub">No account, no deposit, nothing to sign up for. Read the live wheel, call the round before it closes, and the chain grades you.</p>
+
+      <ol class="steps">
+        <li>
+          <span class="step-n">01</span>
+          <h3>Watch the wheel, not a clock</h3>
+          <p>Squeekchain's proof of work is a <b>real hamster wheel</b>. A Raspberry Pi RP2040 counts every turn with an LM393 optical sensor and reports it to the core. When the wheel turns, the core does work; when it stops, the chain goes idle. Everything on this page — rpm, distance, blocks — is that sensor, straight off <code>api.squeekchain.com</code>.</p>
+        </li>
+        <li>
+          <span class="step-n">02</span>
+          <h3>Work gets packaged into blocks</h3>
+          <p>Every <b>1,000,000,000</b> work units seals one block. The core aims for <b>40 blocks</b> in a round — that number is on the chain itself, and this page reads it live, so if the core ever retunes, the game retunes with it.</p>
+        </li>
+        <li>
+          <span class="step-n">03</span>
+          <h3>The round runs 10 minutes</h3>
+          <p>Rounds are <b>600 seconds</b>, fixed by the core contract on Sepolia — not something this site decides. Round numbers start from the chain's genesis and every settled round is written to Sepolia with a transaction hash you can open and check yourself.</p>
+        </li>
+        <li>
+          <span class="step-n">04</span>
+          <h3>Call it before it closes</h3>
+          <p>Pick <b>Nap</b>, <b>Jog</b> or <b>Zoomies</b> and lock it in with a free wallet signature. When the round settles, the chain's own block count decides what you called. One call per round — no edits, no takebacks.</p>
+        </li>
+      </ol>
+
+      <div class="grades">
+        <h3 class="grades-h">What you're actually calling</h3>
+        <p class="grades-sub">The window is the chain's <b>40-block target</b>. Everything below is decided by <code>completedBlockCount</code> on the settled round — the site never invents a result.</p>
+        <div class="grade-grid">
+          <div class="grade g-nap">
+            <span class="gr-glyph" aria-hidden="true">zZ</span>
+            <b>Nap</b>
+            <span class="gr-range">0 blocks</span>
+            <p>The wheel never moved. Nothing sealed, the chain sat idle.</p>
+          </div>
+          <div class="grade g-jog">
+            <span class="gr-glyph" aria-hidden="true">~</span>
+            <b>Jog</b>
+            <span class="gr-range">1 &ndash; 39 blocks</span>
+            <p>Steady turning that came in under the core&rsquo;s target.</p>
+          </div>
+          <div class="grade g-zoom">
+            <span class="gr-glyph" aria-hidden="true">!!</span>
+            <b>Zoomies</b>
+            <span class="gr-range">40+ blocks</span>
+            <p>Past the target. The wheel ran overtime and the core outran its own mark.</p>
+          </div>
+        </div>
+      </div>
+
+      <blockquote class="lore">
+        <p>&ldquo;Round 201 closed with forty-seven blocks. Round 202 closed with five. Same wheel, same ten minutes — the wheel just decided.&rdquo;</p>
+        <cite>&mdash; settled on Sepolia, SqueekCore</cite>
+      </blockquote>
     </div>
   </section>
 
-  <section class="card">
-    <h2>Your record</h2>
-    <div class="grid">
-      <div class="stat"><label>Calls locked</label><b id="myCalls">0</b></div>
-      <div class="stat"><label>Correct</label><b id="myHits">0</b></div>
-      <div class="stat"><label>Accuracy</label><b id="myAcc">—</b></div>
+  <!-- ================= PREDICT ================= -->
+  <section class="band band-alt" id="predict">
+    <div class="band-in">
+      <div class="predict-head">
+        <div>
+          <h2 class="band-title">Call the round</h2>
+          <p class="band-sub">One call per round, locked before it closes. After settlement the chain's answer is final — no edits, no takebacks.</p>
+        </div>
+        <div class="round-badge">
+          <span class="rb-label">Round</span>
+          <b id="curRound">&mdash;</b>
+          <span class="rb-timer" id="roundTimer">&mdash;</span>
+        </div>
+      </div>
+
+      <div class="choices" role="radiogroup" aria-label="Call what the wheel does next">
+        <button class="choice" data-c="nap" role="radio" aria-checked="false">
+          <span class="ch-glyph" aria-hidden="true">zZ</span>
+          <b>Nap</b>
+          <i>0 blocks</i>
+          <small>Wheel never moved. Nothing sealed this round.</small>
+        </button>
+        <button class="choice" data-c="jog" role="radio" aria-checked="false">
+          <span class="ch-glyph" aria-hidden="true">~</span>
+          <b>Jog</b>
+          <i>1 &ndash; 39 blocks</i>
+          <small>Steady turning, short of the chain's target.</small>
+        </button>
+        <button class="choice" data-c="zoomies" role="radio" aria-checked="false">
+          <span class="ch-glyph" aria-hidden="true">!!</span>
+          <b>Zoomies</b>
+          <i>40+ blocks</i>
+          <small>Beat the target. The wheel ran overtime.</small>
+        </button>
+      </div>
+
+      <div class="lock-row">
+        <button id="lockBtn" class="btn btn-gold" disabled>Sign &amp; lock my call</button>
+        <span id="lockMsg" class="msg"></span>
+      </div>
+
+      <div class="score-strip">
+        <div class="score"><label>Calls locked</label><b id="myCalls">0</b></div>
+        <div class="score"><label>Correct</label><b id="myHits">0</b></div>
+        <div class="score"><label>Accuracy</label><b id="myAcc">&mdash;</b></div>
+        <div class="score"><label>Streak</label><b id="myStreak">&mdash;</b></div>
+      </div>
+
+      <div class="tablewrap">
+        <table id="myTable">
+          <thead><tr><th>Round</th><th>Your call</th><th>What the wheel did</th><th>Result</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="fine">Calls are kept in your browser and tied to your wallet with a free signature. Nothing is sent anywhere, nothing costs gas.</p>
     </div>
-    <table id="myTable">
-      <thead><tr><th>Round</th><th>Your call</th><th>Outcome</th><th>Result</th></tr></thead>
-      <tbody></tbody>
-    </table>
   </section>
 
-  <section class="card">
-    <h2>Recent rounds (on-chain)</h2>
-    <p class="hint">Read from SqueekCore on Sepolia via the public Squeekchain API. Last update <span id="upd">—</span>.</p>
-    <table id="rounds">
-      <thead><tr><th>Round</th><th>Status</th><th>Passes</th><th>Outcome</th><th>Tx</th></tr></thead>
-      <tbody></tbody>
-    </table>
+  <!-- ================= CHAIN DATA ================= -->
+  <section class="band" id="chain">
+    <div class="band-in">
+      <h2 class="band-title">The wheel, right now</h2>
+      <p class="band-sub">Straight from the public Squeekchain API, refreshing every 15 seconds. Last read <span id="upd">&mdash;</span>.</p>
+
+      <div class="gauges">
+        <div class="gauge">
+          <span class="g-label">Core status</span>
+          <b class="g-val" id="coreStatus">&mdash;</b>
+          <span class="g-note" id="coreNote">device heartbeat</span>
+        </div>
+        <div class="gauge">
+          <span class="g-label">Wheel speed</span>
+          <b class="g-val" id="rpm">&mdash;</b>
+          <span class="g-note" id="rpmNote">rpm, live</span>
+        </div>
+        <div class="gauge">
+          <span class="g-label">Rim speed</span>
+          <b class="g-val" id="speed">&mdash;</b>
+          <span class="g-note">mm per second</span>
+        </div>
+        <div class="gauge">
+          <span class="g-label">Distance rolled</span>
+          <b class="g-val" id="distance">&mdash;</b>
+          <span class="g-note" id="distNote">millimetres, this session</span>
+        </div>
+        <div class="gauge">
+          <span class="g-label">Block height</span>
+          <b class="g-val" id="blockHeight">&mdash;</b>
+          <span class="g-note" id="blockProg">&mdash; progress</span>
+        </div>
+        <div class="gauge">
+          <span class="g-label">Work banked</span>
+          <b class="g-val" id="workUnits">&mdash;</b>
+          <span class="g-note">proof units, this session</span>
+        </div>
+        <div class="gauge">
+          <span class="g-label">Work / 1000 blocks</span>
+          <b class="g-val" id="wpk">&mdash;</b>
+          <span class="g-note">difficulty</span>
+        </div>
+        <div class="gauge">
+          <span class="g-label">Settled through</span>
+          <b class="g-val" id="settled">&mdash;</b>
+          <span class="g-note">round number</span>
+        </div>
+      </div>
+
+      <h3 class="sub-head">The hardware behind the numbers</h3>
+      <div class="hw">
+        <div class="hw-row">
+          <span class="hw-k">Module</span>
+          <b class="hw-v" id="hwType">&mdash;</b>
+        </div>
+        <div class="hw-row">
+          <span class="hw-k">Driver</span>
+          <b class="hw-v" id="hwDriver">&mdash;</b>
+        </div>
+        <div class="hw-row">
+          <span class="hw-k">Module state</span>
+          <b class="hw-v" id="hwState">&mdash;</b>
+        </div>
+        <div class="hw-row">
+          <span class="hw-k">Provenance</span>
+          <b class="hw-v" id="hwProv">&mdash;</b>
+        </div>
+        <div class="hw-row">
+          <span class="hw-k">Sensor reading</span>
+          <b class="hw-v" id="hwObs">&mdash;</b>
+        </div>
+      </div>
+      <p class="hw-note">
+        Squeekchain's proof of work is a physical hamster wheel. A
+        <b>Raspberry Pi RP2040</b> reads an <b>LM393</b> optical sensor on the drum and
+        reports every turn to the core. No simulation — if the wheel is still, the
+        chain is idle, and these numbers say so.
+      </p>
+
+      <h3 class="sub-head">Settled rounds, straight off Sepolia</h3>
+      <p class="tbl-note" id="roundsNote">
+        Settlements are written to Sepolia <b>only when the wheel does work</b>. If the
+        wheel sits still the core stays idle, rounds pass empty, and nothing new gets
+        anchored &mdash; so this list can lag the live round counter above. That gap is
+        the chain telling the truth, not a page error.
+      </p>
+      <div class="lagbar" id="lagBar">
+        <span class="lag-k">Live round</span><b id="lagLive">&mdash;</b>
+        <span class="lag-sep">&middot;</span>
+        <span class="lag-k">Last settled</span><b id="lagSettled">&mdash;</b>
+        <span class="lag-sep">&middot;</span>
+        <span class="lag-k">Waiting to anchor</span><b id="lagGap">&mdash;</b>
+        <span class="lag-state" id="lagState">&mdash;</span>
+      </div>
+      <div class="tablewrap">
+        <table id="rounds">
+          <thead><tr><th>Round</th><th>Work</th><th>Blocks</th><th>Outcome</th><th>Settlement tx</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
   </section>
 
-  <section class="card about">
-    <h2>How this uses Squeekchain</h2>
-    <ul>
-      <li>Reads <code>/v1/status</code> for live wheel telemetry (core status, RPM, block height, work per 1000 blocks).</li>
-      <li>Reads <code>/v1/settlements</code> and <code>/v1/core</code> for settled rounds, difficulty and the round schedule.</li>
-      <li>Verifies settled rounds against <b>SqueekCore</b> <code>0xfd6c166d4b8e2962e65746a13e5a0797cd4de0c4</code> on Sepolia (chain 11155111), linking each result to its settlement transaction.</li>
-      <li>Your call is locked with a plain <b>wallet signature</b> (EIP-191, zero gas, no private key ever leaves your wallet) and kept locally against the round number.</li>
-      <li>Optional: send a zero-value <b>SQK approve</b> on Sepolia to stamp your call on-chain.</li>
-    </ul>
-    <p class="hint">Independent community project. Not affiliated with the Squeekchain team.</p>
+  <!-- ================= HOW IT USES SQUEKCHAIN ================= -->
+  <section class="band band-alt">
+    <div class="band-in">
+      <h2 class="band-title">How this uses Squeekchain</h2>
+      <ul class="about-list">
+        <li>Reads <code>/v1/status</code> for live wheel telemetry &mdash; core status, wheel speed, distance, block height and work per 1000 blocks.</li>
+        <li>Reads <code>/v1/core</code> and <code>/v1/settlements</code> for round schedule, difficulty and every settled round, each linked to its settlement transaction.</li>
+        <li>Cross-checks settled rounds against <b>SqueekCore</b> <code>0xfd6c166d4b8e2962e65746a13e5a0797cd4de0c4</code> on Sepolia (chain 11155111).</li>
+        <li>Your call is locked with a plain <b>wallet signature</b> (EIP-191, zero gas, no private key ever leaves your wallet).</li>
+        <li>Nothing is minted, bought or sold here. There is no token to buy and no money to lose.</li>
+      </ul>
+      <p class="fine">Community project, not an official Squeekchain site. Built for the Squeekchain Genesis Code lane.</p>
+    </div>
   </section>
+
 </main>
 
-<footer class="wrap">
-  <span>Built for Squeekchain Genesis · Code lane</span>
-  <a id="repoLink" href="#" target="_blank" rel="noopener">Source</a>
+<footer class="foot">
+  <div class="foot-in">
+    <div class="foot-brand">
+      <b>squeek-round</b>
+      <span>Read the wheel. Call the round.</span>
+    </div>
+    <div class="foot-links">
+      <a id="repoLink" href="https://github.com/dondodger/squeek-round-predictor" target="_blank" rel="noopener">Source</a>
+      <a href="https://squeekchain.com" target="_blank" rel="noopener">Squeekchain</a>
+      <a href="https://api.squeekchain.com/v1/status" target="_blank" rel="noopener">Public API</a>
+    </div>
+  </div>
+  <p class="foot-fine">community project, not an official Squeekchain site</p>
 </footer>
 
 <script src="/app.js"></script>

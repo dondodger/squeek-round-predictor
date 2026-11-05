@@ -4,9 +4,8 @@ A **Squeekchain round tool** — one CLI that reads the live wheel, lets you loc
 for the current 10-minute round, and scores your calls against what the wheel actually
 did. Ships with a small dashboard on top of the same data.
 
-Every round of **Squeekchain** lasts 10 minutes. The wheel is driven by **Squeektoshi the
-hamster**. `squeek-round` gives you one command to answer: *what is the round doing right
-now, and did my call land?*
+Every round of **Squeekchain** lasts 10 minutes. `squeek-round` gives you one command to
+answer: *what is the round doing right now, and did my call land?*
 
 | Call | Meaning |
 |---|---|
