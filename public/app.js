@@ -308,6 +308,34 @@ function renderLag(setl) {
   }
 }
 
+/* How often each call actually lands, counted off the settled rounds the API
+   returns. This is the grade card's proof that the bands are live: a band that
+   never fires would show 0/10 and a player would know not to call it. */
+function renderHitRate(setl) {
+  const rows = (setl.recentSettlements || []).slice(0, 10);
+  if (!rows.length) return;
+  const n = rows.length;
+  const hit = { nap: 0, jog: 0, zoomies: 0 };
+  for (const r of rows) hit[classify(r.completedBlockCount)]++;
+
+  const put = (id, key, label) => {
+    const el = $(id);
+    if (!el) return;
+    const c = hit[key];
+    el.innerHTML =
+      c === 0
+        ? `0 of ${n} recent rounds`
+        : `<b>${c}</b> of ${n} recent rounds`;
+    el.setAttribute(
+      "aria-label",
+      `${label} landed in ${c} of the last ${n} settled rounds`
+    );
+  };
+  put("hitNap", "nap", "Nap");
+  put("hitJog", "jog", "Jog");
+  put("hitZoom", "zoomies", "Zoomies");
+}
+
 function renderRounds(setl) {
   const tb = document.querySelector("#rounds tbody");
   tb.innerHTML = "";
@@ -315,6 +343,8 @@ function renderRounds(setl) {
     .slice()
     .sort((x, y) => Number(y.settledThroughRound) - Number(x.settledThroughRound))
     .slice(0, 14);
+
+  renderHitRate(setl);
 
   if (!recent.length) {
     tb.innerHTML = `<tr><td colspan="5">No settlements returned right now.</td></tr>`;

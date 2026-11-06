@@ -307,6 +307,12 @@ body{
 .g-nap .gr-glyph{background:rgba(142,142,160,.18);color:#B6B6C4}
 .g-jog .gr-glyph{background:rgba(90,124,248,.18);color:#8FA6FF}
 .g-zoom .gr-glyph{background:rgba(255,193,70,.18);color:var(--gold)}
+/* live hit-rate on the grade cards — proof the bands actually fire */
+.gr-hit{display:block;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);
+  font:600 11px var(--mono);letter-spacing:.5px;color:var(--dim-2);text-transform:uppercase}
+.gr-hit b{display:inline;font-size:13px;margin:0;color:var(--text);letter-spacing:0}
+.g-zoom .gr-hit b{color:var(--gold)}
+.g-jog .gr-hit b{color:#8FA6FF}
 .g-zoom{border-color:rgba(255,193,70,.34)}
 
 .lore{
