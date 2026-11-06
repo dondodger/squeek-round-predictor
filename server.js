@@ -8,10 +8,16 @@ const fs = require("fs");
 const path = require("path");
 const points = require("./lib/points");
 const rounds = require("./lib/rounds");
+const wheel = require("./lib/wheel");
 
 const PORT = process.env.PORT || 8787;
 const PUB = path.join(__dirname, "public");
 const API = "https://api.squeekchain.com/v1";
+
+/* Last wheel reading, so a frozen odometer can be detected between polls. */
+let wheelPrev = null;
+let wheelState = null;
+let wheelStalled = 0;
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -138,6 +144,38 @@ const server = http.createServer(async (req, res) => {
     return json(res, 200, rounds.hitRate());
   }
 
+  /* The wheel's own telemetry, summarised. The UI needs this to stop labelling
+     every ungated call "pending" — a round whose wheel never turned can never
+     be graded, and saying "pending" there is a lie the player waits on for
+     hours. See lib/wheel.js. */
+  async function refreshWheel() {
+    const [st, setl] = await Promise.all([
+      fetch(`${API}/status`).then((r) => r.json()),
+      fetch(`${API}/settlements`).then((r) => r.json()),
+    ]);
+    const w = wheel.readWheel(st, wheelPrev);
+    wheelPrev = { odometer: w.odometer };
+    wheelState = w;
+    wheelStalled = wheel.stalledRounds(setl);
+    return { ...w, stalledRounds: wheelStalled, checkedAt: new Date().toISOString() };
+  }
+
+  if (url.pathname === "/api/wheel") {
+    try {
+      return json(res, 200, await refreshWheel());
+    } catch (e) {
+      /* Never guess. If the chain is unreachable we say so rather than implying
+         the wheel is fine. */
+      return json(res, 200, {
+        turning: false,
+        stuck: false,
+        unknown: true,
+        reason: "chain telemetry unreachable",
+        error: String((e && e.message) || e),
+      });
+    }
+  }
+
   if (url.pathname.startsWith("/api/points/profile/")) {
     const addr = decodeURIComponent(url.pathname.slice("/api/points/profile/".length));
     const prof = points.getProfile(addr);
@@ -147,7 +185,21 @@ const server = http.createServer(async (req, res) => {
     if (!prof.empty) {
       const m = await settledMap();
       if (points.settle(points.player(addr), m)) points.save();
-      return json(res, 200, points.getProfileExplained(addr));
+      /* The profile must know whether the wheel is turning, otherwise an
+         ungated call reads as "pending" and the player waits on nothing. Fetch
+         it here when no /api/wheel call has populated it yet — the page may
+         well be the first one opened. */
+      if (!wheelState) {
+        try {
+          await refreshWheel();
+        } catch {
+          /* leave wheelState null; the UI falls back to "pending" */
+        }
+      }
+      const out = points.getProfileExplained(addr);
+      out.wheel = wheelState;
+      out.stalledRounds = wheelStalled;
+      return json(res, 200, out);
     }
     return json(res, 200, prof);
   }

@@ -109,10 +109,22 @@
       ? "last call " + new Date(p.lastSeen).toLocaleString()
       : "no calls yet";
 
+    /* An ungraded call is only "pending" if the wheel is still turning. When the
+       wheel has stopped, nothing is coming and we say so — see lib/wheel.js. */
+    const resting = p.wheel && p.wheel.stuck;
+    const restLabel = "wheel resting";
+    const restTitle = "The wheel is not turning, so no blocks are being produced.";
+
     if (!p.calls) {
       $("profRank").textContent = "No calls yet — lock one on the predictor.";
+    } else if (resting && !p.scored) {
+      $("profRank").textContent =
+        "The wheel is resting — no blocks are being produced, so nothing can be graded yet. Your calls are not queued or lost.";
     } else if (!p.scored) {
       $("profRank").textContent = "All calls are pending; the chain grades a round when it settles.";
+    } else if (resting) {
+      $("profRank").textContent =
+        p.hits + " of " + p.scored + " graded rounds called correctly · the wheel is resting, so newer calls await the next run";
     } else {
       $("profRank").textContent = p.hits + " of " + p.scored + " graded rounds called correctly";
     }
@@ -130,16 +142,24 @@
         ? r.outcome === "expired"
           ? "not graded"
           : r.outcome
-        : "pending";
+        : resting
+          ? restLabel
+          : "pending";
       const pts = r.award === undefined || r.award === null ? "\u2014" : r.award ? "+" + r.award : "0";
       const cls = r.outcome && r.outcome === r.choice ? "good" : r.outcome ? "bad" : "";
       /* A streak that is still alive gets its own marker, so a run is visible at
          a glance instead of having to be counted. */
       const fire = r.streak >= 3 && r.outcome === r.choice ? '<span class="fire">\ud83d\udd25' + r.streak + "</span>" : "";
+      /* A resting call gets a hover hint so the label is explained, not just
+         asserted. */
+      const wheelCell =
+        !r.outcome && resting
+          ? '<span class="tag wait" title="' + restTitle + '">' + restLabel + "</span>"
+          : wheel;
       tr.innerHTML =
         "<td>" + r.round + "</td>" +
         '<td class="cap">' + (r.choice || "") + "</td>" +
-        '<td class="cap">' + wheel + fire + "</td>" +
+        '<td class="cap">' + wheelCell + fire + "</td>" +
         '<td class="' + cls + '">' + pts + "</td>";
       if (r.outcome && r.outcome !== "expired") {
         tr.classList.add("row-tap");

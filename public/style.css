@@ -626,3 +626,7 @@ tr.row-tap:focus-visible{box-shadow:inset 0 0 0 2px var(--accent,#6cf)}
   .autopsy-title{font-size:19px}
   .autopsy-share{width:100%;text-align:center}
 }
+
+/* A call whose wheel has stopped: not queued, just waiting on the physical
+   wheel to run again. Deliberately not red — nothing is broken. */
+.tag.wait{background:rgba(255,196,84,.14);color:#ffc454;border:1px solid rgba(255,196,84,.3)}

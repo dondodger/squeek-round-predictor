@@ -619,6 +619,13 @@ async function renderMine() {
     }
   } catch {}
 
+  /* Is the wheel actually turning? A round whose wheel never moved can never be
+     graded, and calling that "pending" makes the player wait on nothing. */
+  let wheelInfo = null;
+  try {
+    wheelInfo = await fetch("/api/wheel").then((r) => r.json());
+  } catch {}
+
   let hits = 0,
     scored = 0;
 
@@ -626,7 +633,11 @@ async function renderMine() {
   for (const c of sorted) {
     const known = Object.prototype.hasOwnProperty.call(settled, c.round);
     let outcome = null;
-    let res = `<span class="tag bad">pending</span>`;
+    /* Default to the honest state for an ungraded call: resting, not pending,
+       whenever the wheel has stopped producing blocks. */
+    let res = wheelInfo && wheelInfo.stuck
+      ? `<span class="tag wait" title="${wheelInfo.reason || "the wheel is not turning"}">wheel resting</span>`
+      : `<span class="tag bad">pending</span>`;
     if (known) {
       outcome = classify(settled[c.round]);
       scored++;
