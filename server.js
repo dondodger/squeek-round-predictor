@@ -7,6 +7,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const points = require("./lib/points");
+const rounds = require("./lib/rounds");
 
 const PORT = process.env.PORT || 8787;
 const PUB = path.join(__dirname, "public");
@@ -66,6 +67,10 @@ function json(res, code, obj) {
 
 /* Settled rounds, cached briefly: the write path needs them to grade a call
    and the public API should not be hammered on every request. */
+/* Settlements observed since the last ingest, folded into the round archive so
+   the hit-rate can be computed from every round we have ever seen rather than
+   the ten the chain API exposes. */
+const seen = [];
 let settledCache = { at: 0, map: {} };
 async function settledMap() {
   if (Date.now() - settledCache.at < 20000) return settledCache.map;
@@ -74,8 +79,20 @@ async function settledMap() {
     const j = await r.json();
     const map = {};
     for (const s of j.recentSettlements || []) {
-      map[Number(s.settledThroughRound)] = Number(s.completedBlockCount) || 0;
+      const round = rounds.parseRound(s.settledThroughRound);
+      const blocks = rounds.parseBlocks(s.completedBlockCount);
+      /* Skip anything we cannot read cleanly. The old `Number(x) || 0` turned a
+         blank or missing field into 0, and 0 grades as a nap — so a malformed
+         settlement would have silently scored real calls against a round that
+         never happened. */
+      if (round === null || blocks === null) continue;
+      map[round] = blocks;
+      /* Fold every settlement we see into the local archive, which is what lets
+         the hit-rate be computed from hundreds of rounds rather than the ten the
+         API exposes. Cheap, idempotent, and it is what makes the numbers ours. */
+      seen.push({ settledThroughRound: round, completedBlockCount: blocks });
     }
+    rounds.ingest(seen.splice(0));
     settledCache = { at: Date.now(), map };
     return map;
   } catch {
@@ -110,6 +127,15 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === "/api/points/leaderboard") {
     return json(res, 200, points.stats());
+  }
+
+  /* The local round archive: how often each band really fires, across every
+     settled round we have collected — not the ten the chain API exposes.
+     Calls settledMap() first so a page load is enough to keep the archive
+     growing, even on a quiet day with no calls to submit. */
+  if (url.pathname === "/api/points/hitrate") {
+    await settledMap();
+    return json(res, 200, rounds.hitRate());
   }
 
   if (url.pathname.startsWith("/api/points/profile/")) {

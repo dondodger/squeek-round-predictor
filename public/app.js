@@ -294,6 +294,13 @@ async function loadLive() {
     renderRounds(setl);
     renderLag(setl);
     renderMine();
+    /* The grade card reads our own archive, not this payload. Fire and forget:
+       a failure here must not take the live readout down with it, and the card
+       simply keeps whatever it showed last. */
+    fetch("/api/points/hitrate", { cache: "no-store" })
+      .then((r) => r.json())
+      .then(renderHitRate)
+      .catch(() => {});
     $("upd").textContent = new Date().toLocaleTimeString();
   } catch (e) {
     $("liveDot").className = "dot off";
@@ -336,32 +343,45 @@ function renderLag(setl) {
   }
 }
 
-/* How often each call actually lands, counted off the settled rounds the API
-   returns. This is the grade card's proof that the bands are live: a band that
-   never fires would show 0/10 and a player would know not to call it. */
-function renderHitRate(setl) {
-  const rows = (setl.recentSettlements || []).slice(0, 10);
-  if (!rows.length) return;
-  const n = rows.length;
-  const hit = { nap: 0, jog: 0, zoomies: 0 };
-  for (const r of rows) hit[classify(r.completedBlockCount)]++;
-
-  const put = (id, key, label) => {
+/* How often each call actually lands, counted off our OWN round archive.
+ *
+ * This used to count the ten settlements the chain API happens to expose, which
+ * is a five-percent sample presented as a fact — and it published "nap 0 of 10"
+ * without ever saying whether nap is rare or simply unobserved. The archive
+ * grows every time anyone loads the page (see lib/rounds.js), so the numbers
+ * below get more honest the longer the site runs, and the sample size is always
+ * shown so a player can weigh them. */
+function renderHitRate(rate) {
+  if (!rate || !rate.sample) return;
+  const n = rate.sample;
+  const labels = { nap: "Nap", jog: "Jog", zoomies: "Zoomies" };
+  const put = (id, key) => {
     const el = $(id);
     if (!el) return;
-    const c = hit[key];
+    const c = rate.counts[key];
+    const share = rate.shares[key];
+    const pct = share === null ? "—" : `${share}%`;
     el.innerHTML =
       c === 0
-        ? `0 of ${n} recent rounds`
-        : `<b>${c}</b> of ${n} recent rounds`;
+        ? `<b>0</b> of ${n} · 0%`
+        : `<b>${pct}</b> · ${c} of ${n}`;
     el.setAttribute(
       "aria-label",
-      `${label} landed in ${c} of the last ${n} settled rounds`
+      `${labels[key]} landed in ${c} of ${n} settled rounds (${pct})`
     );
   };
-  put("hitNap", "nap", "Nap");
-  put("hitJog", "jog", "Jog");
-  put("hitZoom", "zoomies", "Zoomies");
+  put("hitNap", "nap");
+  put("hitJog", "jog");
+  put("hitZoom", "zoomies");
+
+  /* Say out loud how much history the percentages rest on. */
+  const note = $("hitNote");
+  if (note) {
+    note.textContent =
+      n >= 100
+        ? `from ${n} settled rounds we have recorded`
+        : `only ${n} rounds recorded so far — sharpens as the wheel runs`;
+  }
 }
 
 function renderRounds(setl) {
@@ -371,8 +391,6 @@ function renderRounds(setl) {
     .slice()
     .sort((x, y) => Number(y.settledThroughRound) - Number(x.settledThroughRound))
     .slice(0, 14);
-
-  renderHitRate(setl);
 
   if (!recent.length) {
     tb.innerHTML = `<tr><td colspan="5">No settlements returned right now.</td></tr>`;

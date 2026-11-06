@@ -565,3 +565,11 @@ code{background:var(--surface-2);border:1px solid var(--line);border-radius:5px;
 @media (max-width:560px){
   .wallet-menu{width:268px}
 }
+
+/* Sample-size note under the grade grid: says how much history the
+   percentages rest on, so a thin sample can't pass as a fact. */
+.grades-note{
+  margin:12px 0 0;font-size:12.5px;line-height:1.5;color:var(--muted);
+  text-align:center;letter-spacing:.2px;
+}
+.grades-note:empty{display:none}
