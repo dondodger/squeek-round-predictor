@@ -14,6 +14,33 @@ const LS_CALLS = "squeekround_calls_v1";
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => new Intl.NumberFormat().format(n);
 const short = (s) => (s ? s.slice(0, 6) + "\u2026" + s.slice(-4) : "");
+
+/* The header holds ONE slot for the wallet state. Before connecting it is the
+   connect button; after connecting it becomes a link straight into the player's
+   profile, which is where the points live. One slot, so the header never grows
+   two copies of the same affordance. */
+function showConnected() {
+  const btn = $("connectBtn");
+  const link = $("profileBtn");
+  if (btn) btn.hidden = true;
+  if (link) link.hidden = false;
+}
+
+function showDisconnected() {
+  const btn = $("connectBtn");
+  const link = $("profileBtn");
+  if (btn) {
+    btn.hidden = false;
+    btn.textContent = "Connect wallet";
+  }
+  if (link) link.hidden = true;
+  const lbl = $("walletLabel");
+  if (lbl) lbl.textContent = "";
+  const pts = $("myPoints");
+  if (pts) pts.textContent = "0";
+  const row = $("profileLinkRow");
+  if (row) row.hidden = true;
+}
 const hex = (n) => "0x" + BigInt(n).toString(16);
 
 const state = { addr: null, choice: null, rpm: 0, core: null, cfg: null, lastBlocks: 0, blockTarget: 40 };
@@ -383,7 +410,7 @@ async function connect() {
     const [addr] = await window.ethereum.request({ method: "eth_requestAccounts" });
     state.addr = addr.toLowerCase();
     $("walletLabel").textContent = short(addr);
-    $("connectBtn").textContent = "Connected";
+    showConnected();
     try {
       await window.ethereum.request({
         method: "wallet_switchEthereumChain",
@@ -666,19 +693,29 @@ document.querySelectorAll(".choice").forEach((b) => {
         if (a && a.length) {
           state.addr = a[0].toLowerCase();
           $("walletLabel").textContent = short(a[0]);
-          $("connectBtn").textContent = "Connected";
+          showConnected();
           refreshLock();
           renderMine();
+          loadProfile();
+        } else {
+          showDisconnected();
         }
       })
       .catch(() => {});
     if (window.ethereum.on) {
       window.ethereum.on("accountsChanged", (a) => {
         state.addr = a && a.length ? a[0].toLowerCase() : null;
-        $("walletLabel").textContent = state.addr ? short(a[0]) : "";
-        $("connectBtn").textContent = state.addr ? "Connected" : "Connect wallet";
-        refreshLock();
-        renderMine();
+        if (state.addr) {
+          $("walletLabel").textContent = short(a[0]);
+          showConnected();
+          refreshLock();
+          renderMine();
+          loadProfile();
+        } else {
+          showDisconnected();
+          refreshLock();
+          renderMine();
+        }
       });
     }
   }

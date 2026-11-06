@@ -32,6 +32,7 @@
       if (!state.addr) return;
       $("walletLabel").textContent = shorten(state.addr);
       $("connectBtn").hidden = true;
+      $("profileBtn").hidden = false;
       const chainId = await window.ethereum.request({ method: "eth_chainId" });
       setNet(chainId === "0xaa36a7", chainId === "0xaa36a7" ? "Sepolia" : "Chain " + chainId);
       await load();
@@ -126,6 +127,7 @@
         load();
       } else {
         $("connectBtn").hidden = false;
+        $("profileBtn").hidden = true;
         $("walletLabel").textContent = "";
         $("profWrap").hidden = true;
         $("needWallet").hidden = false;
