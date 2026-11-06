@@ -142,11 +142,12 @@ const server = http.createServer(async (req, res) => {
     const addr = decodeURIComponent(url.pathname.slice("/api/points/profile/".length));
     const prof = points.getProfile(addr);
     if (!prof) return json(res, 400, { error: "bad_address" });
-    /* grade anything already settled before answering */
+    /* grade anything already settled before answering, so the fresh grades are
+       included in the explanation we send back */
     if (!prof.empty) {
       const m = await settledMap();
       if (points.settle(points.player(addr), m)) points.save();
-      return json(res, 200, points.getProfile(addr));
+      return json(res, 200, points.getProfileExplained(addr));
     }
     return json(res, 200, prof);
   }

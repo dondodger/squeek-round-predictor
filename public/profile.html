@@ -121,7 +121,7 @@
             <ul class="rules">
               <li><b>+10</b> — called a settled round correctly</li>
               <li><b>+15</b> — called Zoomies correctly (it beat the chain's 40-block target)</li>
-              <li><b>+5</b> — bonus on every hit from a streak of 3 or more</li>
+              <li><b>+5 / +10 / +15 / +25</b> — streak bonus at 3, 5, 7 and 9 in a row</li>
               <li><b>0</b> — a miss never subtracts. Call again.</li>
             </ul>
             <p class="fine">Grading uses <code>completedBlockCount</code> on the settled round — the same rule the call itself was locked against, so the score cannot disagree with the chain.</p>
@@ -129,6 +129,7 @@
         </div>
 
         <h3 class="grades-h">Recent calls</h3>
+        <p class="fine tap-hint">Tap any round to see what happened.</p>
         <div class="tablewrap">
           <table id="profTable">
             <thead><tr><th>Round</th><th>Your call</th><th>Wheel did</th><th>Points</th></tr></thead>
@@ -139,6 +140,21 @@
     </div>
   </section>
 </main>
+
+<!-- Per-call autopsy: what the wheel did, how far off the call was, and a
+     ready-to-post line. Opened by clicking a row in Recent calls. -->
+<div class="autopsy" id="autopsy" hidden>
+  <div class="autopsy-card" role="dialog" aria-modal="true" aria-labelledby="autopsyTitle">
+    <button class="autopsy-x" id="autopsyClose" aria-label="Close">&times;</button>
+    <p class="autopsy-kicker" id="autopsyKicker">Round</p>
+    <h4 class="autopsy-title" id="autopsyTitle">&mdash;</h4>
+    <p class="autopsy-body" id="autopsyBody"></p>
+    <div class="autopsy-foot">
+      <button class="autopsy-share" id="autopsyShare" type="button">Share on X</button>
+      <span class="autopsy-meta" id="autopsyMeta"></span>
+    </div>
+  </div>
+</div>
 
 <footer class="foot">
   <div class="foot-in">

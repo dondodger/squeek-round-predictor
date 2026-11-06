@@ -133,14 +133,82 @@
         : "pending";
       const pts = r.award === undefined || r.award === null ? "\u2014" : r.award ? "+" + r.award : "0";
       const cls = r.outcome && r.outcome === r.choice ? "good" : r.outcome ? "bad" : "";
+      /* A streak that is still alive gets its own marker, so a run is visible at
+         a glance instead of having to be counted. */
+      const fire = r.streak >= 3 && r.outcome === r.choice ? '<span class="fire">\ud83d\udd25' + r.streak + "</span>" : "";
       tr.innerHTML =
         "<td>" + r.round + "</td>" +
         '<td class="cap">' + (r.choice || "") + "</td>" +
-        '<td class="cap">' + wheel + "</td>" +
+        '<td class="cap">' + wheel + fire + "</td>" +
         '<td class="' + cls + '">' + pts + "</td>";
+      if (r.outcome && r.outcome !== "expired") {
+        tr.classList.add("row-tap");
+        tr.tabIndex = 0;
+        tr.setAttribute("role", "button");
+        tr.title = "What happened in round " + r.round;
+        const open = () => showAutopsy(r);
+        tr.addEventListener("click", open);
+        tr.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
+        });
+      }
       tb.appendChild(tr);
     }
   }
+
+  /* ------------------------------ autopsy -------------------------------- */
+
+  let autopsyRec = null;
+
+  function showAutopsy(r) {
+    autopsyRec = r;
+    const band = { nap: "Nap", jog: "Jog", zoomies: "Zoomies" }[r.outcome] || (r.outcome || "");
+    const hit = r.outcome === r.choice;
+    const hasBlocks = r.blocks !== null && r.blocks !== undefined;
+    $("autopsyKicker").textContent = "Round " + r.round + " \u2014 " + (hit ? "you called it" : "missed");
+    /* Only claim a block count when there is one. Rounds graded before we began
+       storing the reading simply show the band — "reading unavailable" in a
+       headline is an error message, not a feature. */
+    $("autopsyTitle").textContent = hasBlocks ? band + " \u2014 " + r.blocks + " blocks" : band;
+    $("autopsyTitle").className = "autopsy-title " + (hit ? "good" : "bad");
+    $("autopsyBody").textContent = r.verdict || "";
+    $("autopsyMeta").textContent =
+      (r.award ? "+" + r.award + " points" : r.outcome ? "no points" : "") +
+      (r.streak >= 2 && hit ? " \u00b7 " + r.streak + " in a row" : "");
+    const share = $("autopsyShare");
+    share.disabled = false;
+    share.textContent = "Share on X";
+    $("autopsy").hidden = false;
+    $("autopsyClose").focus();
+  }
+
+  function closeAutopsy() {
+    $("autopsy").hidden = true;
+    autopsyRec = null;
+  }
+
+  /* The share button hands off to X's own composer. It never posts on the
+     player's behalf — nothing is sent until they press Post over there. */
+  function shareAutopsy() {
+    if (!autopsyRec) return;
+    const text = autopsyRec.share || "";
+    const url = "https://squeekround.my.id/profile";
+    const intent =
+      "https://twitter.com/intent/tweet?text=" +
+      encodeURIComponent(text) +
+      "&url=" +
+      encodeURIComponent(url);
+    window.open(intent, "_blank", "noopener,noreferrer");
+  }
+
+  $("autopsyClose").addEventListener("click", closeAutopsy);
+  $("autopsyShare").addEventListener("click", shareAutopsy);
+  $("autopsy").addEventListener("click", (e) => {
+    if (e.target.id === "autopsy") closeAutopsy();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !$("autopsy").hidden) closeAutopsy();
+  });
 
   /* Disconnect forgets the wallet for this site: drop back to the connect state
      rather than leaving a scoreboard on screen that nobody is signed in for. */
