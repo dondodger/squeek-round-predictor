@@ -250,11 +250,16 @@
       </div>
 
       <div class="score-strip">
+        <div class="score score-key"><label>Points</label><b id="myPoints">0</b></div>
         <div class="score"><label>Calls locked</label><b id="myCalls">0</b></div>
         <div class="score"><label>Correct</label><b id="myHits">0</b></div>
         <div class="score"><label>Accuracy</label><b id="myAcc">&mdash;</b></div>
         <div class="score"><label>Streak</label><b id="myStreak">&mdash;</b></div>
       </div>
+      <p class="profile-link" id="profileLinkRow" hidden>
+        <a id="profileLink" href="/profile">Open your profile &rarr;</a>
+        <span class="pl-note" id="profileNote"></span>
+      </p>
 
       <div class="tablewrap">
         <table id="myTable">
@@ -262,7 +267,7 @@
           <tbody></tbody>
         </table>
       </div>
-      <p class="fine">Calls are kept in your browser and tied to your wallet with a free signature. Nothing is sent anywhere, nothing costs gas.</p>
+      <p class="fine">Every call is signed with your wallet and sent to this site's own scoreboard, keyed to your address — so the points follow the wallet, not the browser. The chain grades it when the round settles. Nothing here costs gas and nothing moves funds.</p>
     </div>
   </section>
 

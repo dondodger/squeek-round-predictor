@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Your profile — squeek-round</title>
+<meta name="description" content="Your squeek-round scoreboard: points, calls, accuracy and streak from Squeekchain's live wheel rounds. Keyed to your wallet. Community project, not an official Squeekchain site." />
+<meta name="squeekchain-project" content="2bf2a5f0-a2d3-42b5-bac6-ce24b755a787" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="/style.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%230B0B0D'/%3E%3Ccircle cx='16' cy='18' r='7' fill='%23FFC146'/%3E%3Ccircle cx='13' cy='17' r='1.3' fill='%230B0B0D'/%3E%3Ccircle cx='19' cy='17' r='1.3' fill='%230B0B0D'/%3E%3Ccircle cx='16' cy='21' r='1' fill='%235A7CF8'/%3E%3C/svg%3E" />
+</head>
+<body>
+<div class="grid-bg" aria-hidden="true"></div>
+<div class="glow-a" aria-hidden="true"></div>
+<div class="glow-b" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="/">
+      <span class="logo" aria-hidden="true">
+        <svg viewBox="0 0 40 40" width="34" height="34">
+          <circle cx="20" cy="20" r="19" fill="#101014" stroke="#FFC146" stroke-width="1.2"/>
+          <path d="M13 14c0-3.3 2.2-5.5 5-5.5s4.6 1.7 5.4 4" fill="none" stroke="#FFC146" stroke-width="2" stroke-linecap="round"/>
+          <ellipse cx="20" cy="22" rx="8" ry="7.2" fill="#FFC146"/>
+          <circle cx="17" cy="21" r="1.5" fill="#0B0B0D"/>
+          <circle cx="23" cy="21" r="1.5" fill="#0B0B0D"/>
+          <circle cx="20" cy="25" r="1.2" fill="#5A7CF8"/>
+        </svg>
+      </span>
+      <span class="brand-txt">
+        <b>squeek-round</b>
+        <i>built on squeekchain</i>
+      </span>
+    </a>
+
+    <nav class="nav">
+      <a href="/#how">How it reads the chain</a>
+      <a href="/#predict">Call the round</a>
+      <a href="/#chain">Live data</a>
+    </nav>
+
+    <div class="top-right">
+      <span id="netPill" class="pill"><span class="pill-dot"></span><span id="netTxt">Sepolia</span></span>
+      <button id="connectBtn" class="btn btn-ghost">Connect wallet</button>
+      <span id="walletLabel" class="addr"></span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="band">
+    <div class="band-in">
+      <h1 class="band-title">Your profile</h1>
+      <p class="band-sub">Points follow your wallet, not your browser. Connect the same address anywhere and this is the same scoreboard.</p>
+
+      <div id="needWallet" class="panel-note">
+        <p>Connect a wallet to see your points.</p>
+        <button id="connectBtn2" class="btn btn-gold">Connect wallet</button>
+      </div>
+
+      <div id="profWrap" hidden>
+        <div class="prof-head">
+          <span class="addr big" id="profAddr">&mdash;</span>
+          <span class="pl-note" id="profSeen"></span>
+        </div>
+
+        <div class="points-hero">
+          <span class="ph-label">Points</span>
+          <b id="profPoints">0</b>
+          <span class="ph-sub" id="profRank"></span>
+        </div>
+
+        <div class="score-strip">
+          <div class="score"><label>Calls locked</label><b id="profCalls">0</b></div>
+          <div class="score"><label>Graded</label><b id="profScored">0</b></div>
+          <div class="score"><label>Correct</label><b id="profHits">0</b></div>
+          <div class="score"><label>Accuracy</label><b id="profAcc">&mdash;</b></div>
+          <div class="score"><label>Streak</label><b id="profStreak">&mdash;</b></div>
+          <div class="score"><label>Best streak</label><b id="profBest">&mdash;</b></div>
+        </div>
+
+        <div class="prof-split">
+          <div class="prof-col">
+            <h3 class="grades-h">Your calls, by band</h3>
+            <div class="callbars">
+              <div class="callbar"><span class="cb-name">Nap</span><span class="cb-n" id="cbNap">0</span></div>
+              <div class="callbar"><span class="cb-name">Jog</span><span class="cb-n" id="cbJog">0</span></div>
+              <div class="callbar"><span class="cb-name">Zoomies</span><span class="cb-n" id="cbZoom">0</span></div>
+            </div>
+            <p class="fine">Counts every call you have locked, whether or not the round has settled yet.</p>
+          </div>
+
+          <div class="prof-col">
+            <h3 class="grades-h">How points are given</h3>
+            <ul class="rules">
+              <li><b>+10</b> — called a settled round correctly</li>
+              <li><b>+15</b> — called Zoomies correctly (it beat the chain's 40-block target)</li>
+              <li><b>+5</b> — bonus on every hit from a streak of 3 or more</li>
+              <li><b>0</b> — a miss never subtracts. Call again.</li>
+            </ul>
+            <p class="fine">Grading uses <code>completedBlockCount</code> on the settled round — the same rule the call itself was locked against, so the score cannot disagree with the chain.</p>
+          </div>
+        </div>
+
+        <h3 class="grades-h">Recent calls</h3>
+        <div class="tablewrap">
+          <table id="profTable">
+            <thead><tr><th>Round</th><th>Your call</th><th>Wheel did</th><th>Points</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="foot-in">
+    <p>
+      <b>squeek-round</b> — an independent community project, not affiliated with the
+      Squeekchain team. Round data read live from <code>api.squeekchain.com</code>.
+      Points are this site's own scoreboard and are not on-chain.
+    </p>
+    <p><a href="/">Back to the predictor</a></p>
+  </div>
+</footer>
+
+<script src="/profile.js"></script>
+</body>
+</html>

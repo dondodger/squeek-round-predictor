@@ -409,6 +409,7 @@ async function connect() {
     }
     refreshLock();
     renderMine();
+    loadProfile();
   } catch (e) {
     setMsg(e && e.code === 4001 ? "Connection rejected." : "Could not connect.", "bad");
   }
@@ -455,7 +456,39 @@ async function lockCall() {
       addr: state.addr,
     };
     saveCalls(calls);
-    setMsg(`Locked \u2014 round ${round} \u2192 ${state.choice}. Signature kept in your browser.`, "ok");
+
+    /* Send the same signed statement to our own scoreboard. The browser copy
+       above is only a local cache so the table renders without a round-trip;
+       the server copy is what makes the points follow the WALLET. If this call
+       fails the lock still stands locally — it just is not scored yet, and the
+       message says so rather than pretending it worked. */
+    let scored = false;
+    try {
+      const r = await fetch("/api/points/submit", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          address: state.addr,
+          round,
+          choice: state.choice,
+          sig,
+          message: msg,
+        }),
+      });
+      const j = await r.json();
+      scored = r.ok && j.ok === true;
+      if (scored && j.profile) applyProfile(j.profile);
+      else if (!r.ok) setMsg(`Locked locally, but not scored (${j.error || r.status}).`, "warn");
+    } catch {
+      scored = false;
+    }
+
+    setMsg(
+      scored
+        ? `Locked \u2014 round ${round} \u2192 ${state.choice}. Points are on your profile.`
+        : `Locked \u2014 round ${round} \u2192 ${state.choice}. Signature kept in your browser.`,
+      "ok"
+    );
     renderMine();
   } catch (e) {
     setMsg(e && e.code === 4001 ? "Signature rejected." : "Signing failed.", "bad");
@@ -471,6 +504,45 @@ function loadCalls() {
 }
 function saveCalls(c) {
   localStorage.setItem(LS_CALLS, JSON.stringify(c));
+}
+
+/* ---------------- server scoreboard (points follow the wallet) ------------ */
+
+/* Paints the numbers the server owns. Kept separate from renderMine() so the
+   local table and the authoritative score never get mixed up: this one only
+   ever shows what /api/points/* returned. */
+function applyProfile(p) {
+  if (!p) return;
+  const set = (id, v) => {
+    const el = $(id);
+    if (el) el.textContent = v;
+  };
+  set("myPoints", (p.points || 0).toLocaleString());
+  set("myCalls", p.calls || 0);
+  set("myHits", p.hits || 0);
+  set("myAcc", p.accuracy === null || p.accuracy === undefined ? "\u2014" : p.accuracy + "%");
+  set("myStreak", p.streak ? p.streak : "\u2014");
+
+  const row = $("profileLinkRow");
+  const note = $("profileNote");
+  if (row) {
+    row.hidden = false;
+    if (note) {
+      note.textContent = p.scored
+        ? `${p.hits} of ${p.scored} graded rounds correct · best streak ${p.bestStreak || 0}`
+        : "no graded rounds yet \u2014 the chain grades when a round settles";
+    }
+  }
+}
+
+async function loadProfile() {
+  if (!state.addr) return;
+  try {
+    const p = await fetch("/api/points/profile/" + state.addr, { cache: "no-store" }).then((r) => r.json());
+    if (!p.error) applyProfile(p);
+  } catch {
+    /* leave the strip at its defaults rather than inventing numbers */
+  }
 }
 
 /* ---------------- score my calls ---------------- */
