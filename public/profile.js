@@ -21,6 +21,10 @@
     $("netTxt").textContent = txt;
   }
 
+  /* "Connect" here only ever READS an address — eth_requestAccounts on an
+     already-authorised site returns instantly with no popup. So we call it
+     unattended on load, exactly like the main page does. Landing on /profile
+     should show the scoreboard, never a second connect prompt. */
   async function connect() {
     if (!window.ethereum) {
       setNet(false, "No wallet found");
@@ -28,7 +32,7 @@
     }
     try {
       const accts = await window.ethereum.request({ method: "eth_requestAccounts" });
-      state.addr = accts && accts[0] ? accts[0] : null;
+      state.addr = accts && accts[0] ? accts[0].toLowerCase() : null;
       if (!state.addr) return;
       $("walletLabel").textContent = shorten(state.addr);
       $("connectBtn").hidden = true;
@@ -38,6 +42,29 @@
       await load();
     } catch (e) {
       setNet(false, "Connect cancelled");
+    }
+  }
+
+  /* Silent path: eth_accounts lists accounts already granted to this origin and
+     never prompts. If there is one, we are already connected — go straight to
+     the score. */
+  async function autoConnect() {
+    if (!window.ethereum || !window.ethereum.request) return false;
+    try {
+      const accts = await window.ethereum.request({ method: "eth_accounts" });
+      if (!accts || !accts.length) return false;
+      state.addr = accts[0].toLowerCase();
+      $("walletLabel").textContent = shorten(state.addr);
+      $("connectBtn").hidden = true;
+      $("profileBtn").hidden = false;
+      try {
+        const chainId = await window.ethereum.request({ method: "eth_chainId" });
+        setNet(chainId === "0xaa36a7", chainId === "0xaa36a7" ? "Sepolia" : "Chain " + chainId);
+      } catch {}
+      await load();
+      return true;
+    } catch {
+      return false;
     }
   }
 
@@ -121,9 +148,11 @@
 
   if (window.ethereum) {
     window.ethereum.on && window.ethereum.on("accountsChanged", (a) => {
-      state.addr = a && a[0] ? a[0] : null;
+      state.addr = a && a[0] ? a[0].toLowerCase() : null;
       if (state.addr) {
         $("walletLabel").textContent = shorten(state.addr);
+        $("connectBtn").hidden = true;
+        $("profileBtn").hidden = false;
         load();
       } else {
         $("connectBtn").hidden = false;
@@ -134,6 +163,19 @@
       }
     });
   }
+
+  /* Land on the scoreboard, not on a connect prompt. The main page hands us an
+     already-authorised wallet, so read it silently and paint immediately. If
+     there is genuinely no wallet, autoConnect() leaves the prompt in place and
+     the click handler above covers it. */
+  autoConnect();
+
+  /* One more attempt on pageshow: Firefox restores bfcache entries with the
+     script already run, in which case the first call happened on a DOM state
+     that no longer exists. */
+  window.addEventListener("pageshow", (e) => {
+    if (e.persisted && !state.addr) autoConnect();
+  });
 
   /* If the page was opened with ?addr= the wallet is only needed to CONFIRM it
      is yours; we still require a connect rather than trusting the query string,
