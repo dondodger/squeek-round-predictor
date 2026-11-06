@@ -18,12 +18,14 @@ const short = (s) => (s ? s.slice(0, 6) + "\u2026" + s.slice(-4) : "");
 /* The header holds ONE slot for the wallet state. Before connecting it is the
    connect button; after connecting it becomes a link straight into the player's
    profile, which is where the points live. One slot, so the header never grows
-   two copies of the same affordance. */
+   two copies of the same affordance. The 0x… chip beside it opens the wallet
+   menu (copy address / disconnect). */
 function showConnected() {
   const btn = $("connectBtn");
   const link = $("profileBtn");
   if (btn) btn.hidden = true;
   if (link) link.hidden = false;
+  if (window.WalletMenu) window.WalletMenu.render(state.addr);
 }
 
 function showDisconnected() {
@@ -34,8 +36,7 @@ function showDisconnected() {
     btn.textContent = "Connect wallet";
   }
   if (link) link.hidden = true;
-  const lbl = $("walletLabel");
-  if (lbl) lbl.textContent = "";
+  if (window.WalletMenu) window.WalletMenu.render(null);
   const pts = $("myPoints");
   if (pts) pts.textContent = "0";
   const row = $("profileLinkRow");
@@ -409,7 +410,9 @@ async function connect() {
   try {
     const [addr] = await window.ethereum.request({ method: "eth_requestAccounts" });
     state.addr = addr.toLowerCase();
-    $("walletLabel").textContent = short(addr);
+    /* Connecting is an explicit act: clear any remembered disconnect so this
+       wallet is not skipped on the next load. */
+    if (window.WalletMenu) window.WalletMenu.unforget();
     showConnected();
     try {
       await window.ethereum.request({
@@ -686,18 +689,35 @@ document.querySelectorAll(".choice").forEach((b) => {
     }
   }, 1000);
 
+  /* Disconnect forgets the wallet for this site. Reset the UI to the connect
+     state and stop showing a score that no longer belongs to anyone here. */
+  if (window.WalletMenu) {
+    window.WalletMenu.onDisconnect = () => {
+      state.addr = null;
+      state.choice = null;
+      showDisconnected();
+      refreshLock();
+      renderMine();
+      const tb = $("myTable") && $("myTable").querySelector("tbody");
+      if (tb) tb.innerHTML = "";
+      setMsg("Wallet disconnected. Connect again to keep calling rounds.");
+    };
+  }
+
   if (window.ethereum) {
     window.ethereum
       .request({ method: "eth_accounts" })
       .then((a) => {
-        if (a && a.length) {
+        if (a && a.length && !(window.WalletMenu && window.WalletMenu.isForgotten(a[0]))) {
           state.addr = a[0].toLowerCase();
-          $("walletLabel").textContent = short(a[0]);
           showConnected();
           refreshLock();
           renderMine();
           loadProfile();
         } else {
+          /* No account, or one the user explicitly disconnected: show the
+             connect state and leave it alone. Auto-adopting a forgotten wallet
+             would make Disconnect look like it silently failed. */
           showDisconnected();
         }
       })
@@ -706,7 +726,9 @@ document.querySelectorAll(".choice").forEach((b) => {
       window.ethereum.on("accountsChanged", (a) => {
         state.addr = a && a.length ? a[0].toLowerCase() : null;
         if (state.addr) {
-          $("walletLabel").textContent = short(a[0]);
+          /* Picking a different account is an explicit act — drop the forgotten
+             marker so the new wallet is adopted immediately. */
+          if (window.WalletMenu) window.WalletMenu.unforget();
           showConnected();
           refreshLock();
           renderMine();

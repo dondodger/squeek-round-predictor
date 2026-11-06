@@ -45,7 +45,30 @@
       <span id="netPill" class="pill"><span class="pill-dot"></span><span id="netTxt">Sepolia</span></span>
       <button id="connectBtn" class="btn btn-ghost">Connect wallet</button>
       <a id="profileBtn" class="btn btn-gold" href="/">&#8592; Play a round</a>
-      <span id="walletLabel" class="addr"></span>
+      <div class="wallet-menu-wrap">
+        <button id="addrBtn" class="addr-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Wallet options" hidden>
+          <span id="addrText" class="addr-text"></span>
+          <span class="addr-caret" aria-hidden="true">&#9662;</span>
+        </button>
+        <div id="walletMenu" class="wallet-menu" role="menu" hidden>
+          <p class="wm-label">Connected</p>
+          <button id="wmCopy" class="wm-item" role="menuitem" type="button">
+            <span class="wm-ico" aria-hidden="true">&#10697;</span>
+            <span class="wm-copy">
+              <b>Copy address</b>
+              <i id="wmAddr">&mdash;</i>
+            </span>
+          </button>
+          <button id="wmDisconnect" class="wm-item wm-danger" role="menuitem" type="button">
+            <span class="wm-ico" aria-hidden="true">&#9099;</span>
+            <span class="wm-copy">
+              <b>Disconnect</b>
+              <i>Forget this wallet here</i>
+            </span>
+          </button>
+          <p class="wm-note" id="wmNote" hidden></p>
+        </div>
+      </div>
     </div>
   </div>
 </header>
@@ -128,6 +151,7 @@
   </div>
 </footer>
 
+<script src="/wallet-menu.js"></script>
 <script src="/profile.js"></script>
 </body>
 </html>

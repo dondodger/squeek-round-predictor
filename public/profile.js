@@ -34,7 +34,6 @@
       const accts = await window.ethereum.request({ method: "eth_requestAccounts" });
       state.addr = accts && accts[0] ? accts[0].toLowerCase() : null;
       if (!state.addr) return;
-      $("walletLabel").textContent = shorten(state.addr);
       $("connectBtn").hidden = true;
       $("profileBtn").hidden = false;
       const chainId = await window.ethereum.request({ method: "eth_chainId" });
@@ -47,16 +46,17 @@
 
   /* Silent path: eth_accounts lists accounts already granted to this origin and
      never prompts. If there is one, we are already connected — go straight to
-     the score. */
+     the score. A wallet the user explicitly disconnected is skipped. */
   async function autoConnect() {
     if (!window.ethereum || !window.ethereum.request) return false;
     try {
       const accts = await window.ethereum.request({ method: "eth_accounts" });
       if (!accts || !accts.length) return false;
+      if (window.WalletMenu && window.WalletMenu.isForgotten(accts[0])) return false;
       state.addr = accts[0].toLowerCase();
-      $("walletLabel").textContent = shorten(state.addr);
       $("connectBtn").hidden = true;
       $("profileBtn").hidden = false;
+      if (window.WalletMenu) window.WalletMenu.render(state.addr);
       try {
         const chainId = await window.ethereum.request({ method: "eth_chainId" });
         setNet(chainId === "0xaa36a7", chainId === "0xaa36a7" ? "Sepolia" : "Chain " + chainId);
@@ -142,6 +142,21 @@
     }
   }
 
+  /* Disconnect forgets the wallet for this site: drop back to the connect state
+     rather than leaving a scoreboard on screen that nobody is signed in for. */
+  if (window.WalletMenu) {
+    window.WalletMenu.onDisconnect = () => {
+      state.addr = null;
+      state.prof = null;
+      $("connectBtn").hidden = false;
+      $("profileBtn").hidden = true;
+      $("profWrap").hidden = true;
+      $("needWallet").hidden = false;
+      const tb = document.querySelector("#profTable tbody");
+      if (tb) tb.innerHTML = "";
+    };
+  }
+
   $("connectBtn").addEventListener("click", connect);
   const c2 = $("connectBtn2");
   if (c2) c2.addEventListener("click", connect);
@@ -150,14 +165,15 @@
     window.ethereum.on && window.ethereum.on("accountsChanged", (a) => {
       state.addr = a && a[0] ? a[0].toLowerCase() : null;
       if (state.addr) {
-        $("walletLabel").textContent = shorten(state.addr);
+        if (window.WalletMenu) window.WalletMenu.unforget();
         $("connectBtn").hidden = true;
         $("profileBtn").hidden = false;
+        if (window.WalletMenu) window.WalletMenu.render(state.addr);
         load();
       } else {
         $("connectBtn").hidden = false;
         $("profileBtn").hidden = true;
-        $("walletLabel").textContent = "";
+        if (window.WalletMenu) window.WalletMenu.render(null);
         $("profWrap").hidden = true;
         $("needWallet").hidden = false;
       }
