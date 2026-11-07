@@ -1,3 +1,7 @@
 points.json
 points.json.tmp
 node_modules/
+
+# scratch ledgers written by tests
+.*-ledger.json
+.run-tests-ledger.json

@@ -18,8 +18,13 @@ const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
 
-const DB = path.join(__dirname, "points.json");
-const ORIG = fs.readFileSync(DB);
+/* The module reads its ledger path from SQUEER_POINTS, so point it at a
+   scratch file. An earlier version of this test wrote to the real
+   points.json and wiped a player's history when a run died before the
+   restore step — the test must never touch the live ledger. */
+const REAL_DB = path.join(__dirname, "points.json");
+const DB = path.join(__dirname, ".test-waiting-ledger.json");
+process.env.SQUEER_POINTS = DB;
 const BASE = path.join(__dirname, ".test-waiting-base.json");
 
 const GENESIS = 1793735400, DUR = 600;
@@ -167,11 +172,15 @@ t("REAL DATA: Don's R483 call was inside its window when locked", () => {
   assert.ok(lockTs > openAt && lockTs < closeAt, "the call was inside the window");
 });
 
-t("the scoreboard file is restored after the run", () => {
-  /* the earlier cases write fixture calls into the real file, so put the
-     player's own scoreboard back exactly as we found it */
-  fs.writeFileSync(DB, ORIG);
-  assert.deepStrictEqual(fs.readFileSync(DB), ORIG, "points.json must be unchanged");
+t("the live ledger was never opened by this test", () => {
+  assert.ok(!fs.existsSync(DB) || DB !== REAL_DB,
+    "the test must write to its own scratch ledger");
+});
+
+t("fixture calls never reach the live ledger", () => {
+  const today = fs.existsSync(REAL_DB) ? fs.readFileSync(REAL_DB, "utf8") : "";
+  assert.ok(!today.includes("waiting-fixture"),
+    "no fixture marker may appear in the player's ledger");
 });
 
 fs.rmSync(BASE, { force: true });

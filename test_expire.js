@@ -3,7 +3,13 @@
    R417 sat pending for hours because recentSettlements only carries the last
    ~10 rounds, and the presence check ran before the age check.
    Run: node test_expire.js */
+/* scratch ledger only — never the live one */
+const path = require("path");
+process.env.SQUEER_POINTS = process.env.SQUEER_POINTS || path.join(__dirname, ".test-expire-ledger.json");
 const points = require("./lib/points");
+/* the clock drives roundPhase(): without it every round reads "unknown" and
+   nothing can be graded, which is a different failure from what this checks */
+points.setConfig({ genesisTimestamp: String(1793735400), roundDuration: String(600) });
 
 let pass = 0, fail = 0;
 const t = (name, fn) => {

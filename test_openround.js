@@ -69,9 +69,13 @@ t("every round strictly behind the clock is gradable", () => {
 /* integration: settle() must skip an open round even when handed a settlement
    for it, and must grade an older one from the same map. */
 t("settle(): an open round with a settlement present stays pending", () => {
-  const DB = path.join(__dirname, "points.json");
+  /* use whatever ledger the runner handed us; only back it up if it is there,
+     and put it back in a finally so a failure cannot leak state into later cases */
+  const DB = process.env.SQUEER_POINTS || path.join(__dirname, ".test-openround-ledger.json");
+  process.env.SQUEER_POINTS = DB;
   const bak = DB + ".test-openround";
-  fs.copyFileSync(DB, bak);
+  const had = fs.existsSync(DB);
+  if (had) fs.copyFileSync(DB, bak);
   try {
     const points = require("./lib/points");
     points.setConfig({ genesisTimestamp: String(GENESIS), roundDuration: String(DUR) });
@@ -92,8 +96,8 @@ t("settle(): an open round with a settlement present stays pending", () => {
     assert.strictEqual(p.rounds[String(nowRound - 1)].outcome, "zoomies",
       "the closed round must still be graded");
   } finally {
-    fs.copyFileSync(bak, DB);
-    fs.unlinkSync(bak);
+    /* only restore a ledger we actually backed up */
+    if (had && fs.existsSync(bak)) { fs.copyFileSync(bak, DB); fs.unlinkSync(bak); }
   }
 });
 

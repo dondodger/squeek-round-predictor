@@ -16,6 +16,9 @@
  */
 const assert = require("assert");
 
+/* scratch ledger: the live one belongs to the players */
+const path = require("path");
+process.env.SQUEER_POINTS = path.join(__dirname, ".test-streak-ledger.json");
 const points = require("./lib/points");
 
 let pass = 0;

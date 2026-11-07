@@ -11,8 +11,13 @@ const at = (round, off) => (GENESIS + round * DUR + off) * 1000;
 /* roundPhase() reads db.config, so exercise it through a scoreboard db we
    control rather than by poking globals — a config-less db is exactly the cold
    start this is about. Each case reloads the module with its own db file. */
-const DB = path.join(__dirname, "points.json");
-const SAVE = fs.readFileSync(DB);
+/* Never open the live ledger. SQUEER_POINTS points lib/points at a scratch
+   file, so a crashed or re-run test cannot clip a real player's history — an
+   earlier revision wrote the live file and wiped one. */
+const REAL_DB = path.join(__dirname, "points.json");
+const DB = path.join(__dirname, ".test-roundphase-ledger.json");
+process.env.SQUEER_POINTS = DB;
+const SAVE = fs.existsSync(REAL_DB) ? fs.readFileSync(REAL_DB) : Buffer.from("{}");
 let points;
 function withDb(cfg, fn) {
   const scratch = path.join(__dirname, ".test-roundphase.json");
