@@ -210,7 +210,19 @@ async function loadLive() {
     ]);
 
     const m = status.measurement || {};
+    /* Which block height do we show? Two live candidates:
+         anchor.blockHeight    — the last block CONFIRMED on Sepolia. Only moves
+                                 when a settlement lands, so between settlements
+                                 it can sit still for hours while the wheel turns.
+         projected.blockHeight — what the builder has produced right now.
+                                 Moves every poll.
+       We want the live one. Prefer projected, fall back to anchor when the
+       builder reports nothing (settlement-only view, or an older payload).
+       We keep `a` pointing at the authoritative confirmed record for anything
+       that genuinely must come off the chain. */
     const a = (status.builder && status.builder.anchor) || {};
+    const pj = (status.builder && status.builder.projected) || {};
+    const live = Number(pj.blockHeight) > Number(a.blockHeight) ? pj : a;
     const c = core.configuration || {};
     const k = core.core || {};
 
@@ -233,7 +245,7 @@ async function loadLive() {
 
     // hero facts
     $("fRound").textContent = (state.cfg.roundDuration / 60).toFixed(0) + " min";
-    $("fBlock").textContent = a.blockHeight ? fmt(a.blockHeight) : "\u2014";
+    $("fBlock").textContent = live.blockHeight ? fmt(live.blockHeight) : "\u2014";
     $("fRpm").textContent = state.rpm.toFixed(2) + " rpm";
 
     // gauges — every one of these is a live API field
@@ -253,7 +265,7 @@ async function loadLive() {
     $("workUnits").textContent = shown(m.cumulativeWorkUnits);
     $("distNote").textContent =
       num(m.distanceMm) > 0 ? "millimetres, since boot" : "no turns recorded yet";
-    $("blockHeight").textContent = a.blockHeight ? fmt(a.blockHeight) : "\u2014";
+    $("blockHeight").textContent = live.blockHeight ? fmt(live.blockHeight) : "\u2014";
 
     // the physical rig that produces the numbers above
     const mod = (status.modules && status.modules[0]) || {};
@@ -270,9 +282,9 @@ async function loadLive() {
     // i.e. blockProgress is the position inside the CURRENT block, whose capacity
     // is exactly 1e9 units. workPerThousandBlocks / 1000 = work per block.
     // NB: the API hands these back as STRINGS, so coerce before doing maths.
-    const bp = BigInt(a.blockProgress || 0);
+    const bp = BigInt(live.blockProgress || 0);
     const UNIT_PER_BLOCK = 1000000000n;
-    const wpk = Number(a.workPerThousandBlocks) || 0;
+    const wpk = Number(live.workPerThousandBlocks) || 0;
     const perBlock = wpk / 1000; // work units per block
 
     const pct = Number((bp * 10000n) / UNIT_PER_BLOCK) / 100;
@@ -281,8 +293,9 @@ async function loadLive() {
     $("meterPct").textContent = p.toFixed(1) + "%";
     const left = Math.max(0, perBlock * (1 - pct / 100));
     $("meterLeft").textContent = left.toFixed(3) + " work left";
-    $("blockProg").textContent = p.toFixed(1) + "% \u00b7 " + fmt(a.blockHeight || 0);
-    $("blockLink").textContent = "block " + (a.blockHeight || "\u2014");
+    $("blockProg").textContent = p.toFixed(1) + "% \u00b7 " + fmt(live.blockHeight || 0);
+    $("blockLink").textContent = "block " + (live.blockHeight || "\u2014");
+    /* the etherscan link must point at a CONFIRMED tx, so it stays on anchor */
     $("blockLink").href = a.transactionHash
       ? "https://sepolia.etherscan.io/tx/" + a.transactionHash
       : "#chain";
