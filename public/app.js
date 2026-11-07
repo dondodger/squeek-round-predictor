@@ -501,7 +501,16 @@ function statement(round, choice) {
 async function lockCall() {
   if (!state.addr || !state.choice) return;
   const round = currentRound();
-  const msg = statement(round, state.choice);
+  /* Freeze BOTH the round and the call the instant the player asks to lock.
+     The wallet prompt can sit open for as long as the player likes, and the
+     board keeps ticking underneath it — a round boundary can pass, and
+     state.choice can be reset by anything that re-renders the picker. Reading
+     state.choice again after the signature came back meant a zoomies call
+     could be submitted under a stale grade (Don hit exactly this: signed
+     zoomies on R480, recorded as jog, paid nothing). What was signed is now
+     the only thing we send. */
+  const call = state.choice;
+  const msg = statement(round, call);
   setMsg("Waiting for wallet signature\u2026");
   try {
     const sig = await window.ethereum.request({
@@ -511,7 +520,7 @@ async function lockCall() {
     const calls = loadCalls();
     calls[`${state.addr}:${round}`] = {
       round,
-      choice: state.choice,
+      choice: call,
       sig,
       at: Date.now(),
       addr: state.addr,
@@ -531,7 +540,7 @@ async function lockCall() {
         body: JSON.stringify({
           address: state.addr,
           round,
-          choice: state.choice,
+          choice: call,
           sig,
           message: msg,
         }),
@@ -546,8 +555,8 @@ async function lockCall() {
 
     setMsg(
       scored
-        ? `Locked \u2014 round ${round} \u2192 ${state.choice}. Points are on your profile.`
-        : `Locked \u2014 round ${round} \u2192 ${state.choice}. Signature kept in your browser.`,
+        ? `Locked \u2014 round ${round} \u2192 ${call}. Points are on your profile.`
+        : `Locked \u2014 round ${round} \u2192 ${call}. Signature kept in your browser.`,
       "ok"
     );
     renderMine();

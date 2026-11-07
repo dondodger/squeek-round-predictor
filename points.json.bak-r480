@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "updatedAt": "2026-11-07T03:56:59.398Z",
+  "players": {
+    "0x3e20ab25eb721dd4b691516238df14f0f5d3f7a3": {
+      "address": "0x3e20ab25eb721dd4b691516238df14f0f5d3f7a3",
+      "points": 10,
+      "calls": 2,
+      "scored": 2,
+      "hits": 1,
+      "streak": 0,
+      "bestStreak": 1,
+      "byCall": {
+        "nap": 1,
+        "jog": 1,
+        "zoomies": 0
+      },
+      "rounds": {
+        "357": {
+          "choice": "nap",
+          "sig": null,
+          "at": "2026-11-06T09:49:11.646Z",
+          "outcome": "zoomies",
+          "gradedAt": "2026-11-06T09:49:11.646Z",
+          "award": 0
+        },
+        "358": {
+          "choice": "jog",
+          "sig": null,
+          "at": "2026-11-06T09:49:11.463Z",
+          "outcome": "jog",
+          "gradedAt": "2026-11-06T09:49:11.495Z",
+          "award": 10
+        }
+      },
+      "firstSeen": "2026-11-06T09:49:11.463Z",
+      "lastSeen": "2026-11-06T09:49:11.646Z"
+    },
+    "0x702e0c3f4e3cde76c6838f90f34e698779912556": {
+      "address": "0x702e0c3f4e3cde76c6838f90f34e698779912556",
+      "points": 0,
+      "calls": 4,
+      "scored": 2,
+      "hits": 0,
+      "streak": 0,
+      "bestStreak": 0,
+      "byCall": {
+        "nap": 2,
+        "jog": 2,
+        "zoomies": 0
+      },
+      "rounds": {
+        "372": {
+          "choice": "nap",
+          "sig": null,
+          "at": "2026-11-06T09:59:04.185Z",
+          "outcome": "expired",
+          "award": 0,
+          "expiredAt": "2026-11-07T03:56:59.398Z"
+        },
+        "417": {
+          "choice": "nap",
+          "sig": null,
+          "at": "2026-11-06T17:26:51.187Z",
+          "outcome": "expired",
+          "award": 0,
+          "expiredAt": "2026-11-07T03:56:59.398Z"
+        },
+        "479": {
+          "choice": "jog",
+          "sig": null,
+          "at": "2026-11-07T03:49:27.683Z",
+          "outcome": "zoomies",
+          "blocks": 45,
+          "gradedAt": "2026-11-07T03:49:28.126Z",
+          "award": 0
+        },
+        "480": {
+          "choice": "jog",
+          "sig": null,
+          "at": "2026-11-07T03:50:31.598Z",
+          "outcome": "zoomies",
+          "blocks": 43,
+          "gradedAt": "2026-11-07T03:53:14.036Z",
+          "award": 0
+        }
+      },
+      "firstSeen": "2026-11-06T09:59:04.185Z",
+      "lastSeen": "2026-11-07T03:53:14.035Z"
+    }
+  }
+}
