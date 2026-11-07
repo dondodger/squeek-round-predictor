@@ -672,12 +672,30 @@ async function loadProfile() {
 
 /* ---------------- score my calls ---------------- */
 
+/* The server's own verdict for a round this wallet called, keyed by round.
+   The browser must not decide this for itself: it has no round clock of its
+   own beyond a wall-clock guess and it sees the chain's running block count,
+   which is a partial result, not a final one. Cached per render so a table of
+   N calls is one request. */
+let serverRows = {};
+function serverRow(round) {
+  return serverRows[String(round)] || null;
+}
+
+async function loadServerRows() {
+  serverRows = {};
+  if (!state.addr) return;
+  try {
+    const p = await fetch("/api/points/profile/" + state.addr, { cache: "no-store" }).then((r) => r.json());
+    for (const r of p.recent || []) serverRows[String(r.round)] = r;
+  } catch {}
+}
+
 async function renderMine() {
   const calls = loadCalls();
   const mine = Object.values(calls).filter((c) => !state.addr || c.addr === state.addr);
   const tb = document.querySelector("#myTable tbody");
   tb.innerHTML = "";
-
   if (!mine.length) {
     tb.innerHTML = `<tr><td colspan="4">No calls yet. Connect a wallet and lock one in.</td></tr>`;
     $("myCalls").textContent = "0";
@@ -696,25 +714,46 @@ async function renderMine() {
     }
   } catch {}
 
-  /* Is the wheel actually turning? A round whose wheel never moved can never be
-     graded, and calling that "pending" makes the player wait on nothing. */
+  /* Are the wheel and the round clock reachable? A call that cannot be graded
+     yet is shown as waiting, which is the truth. */
   let wheelInfo = null;
   try {
     wheelInfo = await fetch("/api/wheel").then((r) => r.json());
   } catch {}
 
+  /* ask the scoreboard for its own per-round verdict before drawing */
+  await loadServerRows();
+
   let hits = 0,
     scored = 0;
 
   const sorted = mine.slice().sort((a, b) => b.round - a.round);
+  /* The round that is running right now. A settlement can appear for a round
+     that has not closed yet — the chain publishes a running completedBlockCount
+     as each block seals — so "the chain mentions this round" is NOT the same as
+     "this round is over". Grading on the first sighting made a mid-round call
+     settle instantly and visibly (Don called zoomies at minute 6 of the round
+     and the table already said miss). A call is only graded once its own window
+     has closed. */
+  const nowSec = Math.floor(Date.now() / 1000);
+  const cfg = state.cfg || {};
+  const liveRound = cfg.genesisTimestamp
+    ? Math.floor((nowSec - cfg.genesisTimestamp) / cfg.roundDuration)
+    : null;
+  const closed = (r) => liveRound === null || Number(r) < liveRound;
+
   for (const c of sorted) {
-    const known = Object.prototype.hasOwnProperty.call(settled, c.round);
+    /* An ungraded call is reported from the SERVER's own view when we have one
+       (phase/waiting/over), so the browser and the scoreboard agree instead of
+       each deciding for itself. */
+    const srv = serverRow(c.round);
+    const roundOver = srv ? srv.over === true : closed(c.round);
+    const known = roundOver && Object.prototype.hasOwnProperty.call(settled, c.round);
     let outcome = null;
-    /* Default to the honest state for an ungraded call: resting, not pending,
-       whenever the wheel has stopped producing blocks. */
-    let res = wheelInfo && wheelInfo.stuck
-      ? `<span class="tag wait" title="${wheelInfo.reason || "the wheel is not turning"}">wheel resting</span>`
-      : `<span class="tag bad">pending</span>`;
+    let res = `<span class="tag wait" title="the chain grades this round when it closes">waiting</span>`;
+    if (!roundOver && srv && srv.phase === "unknown") {
+      res = `<span class="tag wait" title="no round clock yet">waiting</span>`;
+    }
     if (known) {
       outcome = classify(settled[c.round]);
       scored++;
@@ -724,6 +763,9 @@ async function renderMine() {
       } else {
         res = `<span class="tag bad">miss</span>`;
       }
+    } else if (roundOver && !Object.prototype.hasOwnProperty.call(settled, c.round)) {
+      /* its window is done but the chain has not carried the result yet */
+      res = `<span class="tag wait" title="waiting for the chain to settle this round">grading</span>`;
     }
     const tr = document.createElement("tr");
     tr.innerHTML =

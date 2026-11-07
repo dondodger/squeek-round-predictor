@@ -25,6 +25,7 @@ const TESTS = [
   "test_roundphase", "test_finalgrade", "test_openround", "test_bindchoice",
   "test_expire", "test_blockpick", "test_wheel", "test_verdict",
   "test_streak", "test_points_api", "test_rounds", "test_waiting",
+  "test_board_midround",
 ];
 
 const sha = (p) => (fs.existsSync(p) ? crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex") : "absent");
