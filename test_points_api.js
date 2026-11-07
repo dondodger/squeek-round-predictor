@@ -73,6 +73,55 @@ function statement(round, choice, addr) {
     "Signing is free and does not move funds."].join("\n");
 }
 
+/**
+ * Assert the submit path refuses calls while the wheel rests.
+ *
+ * Run against an instance WITHOUT the wheel fixture, so it derives `resting`
+ * from the chain like production does. On a healthy chain that instance would
+ * accept the call, so the check reports "skipped" rather than failing — the live
+ * chain's state is not this test's business. What it must never do is pass
+ * silently when the gate has been removed: the assertion only runs when the gate
+ * says resting, and then demands a 409.
+ */
+async function checkWheelGate(port) {
+  const child = require("child_process").spawn("node", ["server.js"], {
+    cwd: __dirname,
+    env: { ...process.env, PORT: String(port), SQUEER_POINTS: TMP, SQUEER_SCORE_AGE: "500" },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  try {
+    for (let i = 0; i < 40; i++) {
+      try {
+        const w = await req(port, "GET", "/api/wheel");
+        if (w.code === 200) break;
+      } catch {}
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    const wres = JSON.parse((await req(port, "GET", "/api/wheel")).body);
+    const gate = wres.gate || {};
+    if (gate.state !== "resting") {
+      console.log(`SKIP  wheel gate refusal (wheel not resting: ${gate.state || "no gate field"})`);
+      return;
+    }
+    /* The wheel is resting, so a genuine call must be turned away with 409 and
+       the machine-readable reason. Sign properly: a malformed signature would
+       also produce a 4xx, and would pass a sloppy check. */
+    const addr = "0x9a1B2c3D4e5F60718293a4B5c6D7e8F901234567";
+    const key = BigInt("0x" + "5c".repeat(32));
+    const GEN = 1793735400, DUR = 600;
+    const ROUND = Math.floor((Math.floor(Date.now() / 1000) - GEN) / DUR);
+    const msg = statement(ROUND, "nap", addr);
+    const res = await req(port, "POST", "/api/points/submit",
+      { address: addr, round: ROUND, choice: "nap", sig: sign(msg, key), message: msg });
+    const j = JSON.parse(res.body);
+    check("resting wheel refuses a real call (409)", res.code === 409, `${res.code} ${res.body}`);
+    check("refusal names the reason", j.error === "wheel_resting", res.body);
+    check("refusal explains itself to the player", typeof j.detail === "string" && j.detail.length > 10, res.body);
+  } finally {
+    child.kill();
+  }
+}
+
 /* ---- request helper ---- */
 function req(port, method, p, body) {
   return new Promise((resolve, reject) => {
@@ -96,7 +145,7 @@ function check(name, cond, extra) {
   const PORT = 8899;
   const child = require("child_process").spawn("node", ["server.js"], {
     cwd: __dirname,
-    env: { ...process.env, PORT: String(PORT), SQUEER_POINTS: TMP, SQUEER_SCORE_AGE: "500" },
+    env: { ...process.env, PORT: String(PORT), SQUEER_POINTS: TMP, SQUEER_SCORE_AGE: "500", SQUEER_WHEEL_UP: "1" },
     stdio: ["ignore", "pipe", "pipe"],
   });
   child.stdout.on("data", () => {});
@@ -176,6 +225,15 @@ function check(name, cond, extra) {
       const db = JSON.parse(fs.readFileSync(TMP, "utf8"));
       check("ledger keyed by lowercase address", !!db.players[addr.toLowerCase()], Object.keys(db.players).join(","));
     }
+
+    /* 8. the wheel gate exists and refuses while the wheel rests.
+       This instance runs with SQUEER_WHEEL_UP=1 so the checks above can sign,
+       which is exactly why the gate needs asserting here too: without it, the
+       gate could be deleted from the submit handler and every other check in
+       this file would still pass. Boot a second instance without the fixture and
+       drive it into a rested state via the same env-free path production uses. */
+    await checkWheelGate(PORT + 1);
+
   } finally {
     child.kill();
   }

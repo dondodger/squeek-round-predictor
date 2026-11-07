@@ -145,10 +145,23 @@ ok("callState: a turning wheel with a fresh round is pending", () => {
   assert.ok(/10 minutes/i.test(st.detail), st.detail);
 });
 
-ok("callState: a wheel stuck for fewer rounds than the threshold still rests", () => {
+/* A stopped wheel used to be reported as "resting" straight away, which read as
+   "nothing will ever be scored". That conflated a brief pause with a dead chain:
+   the chain really did produce a single zero-work round (round 499) and resumed
+   on the next one, so a stopped wheel with no run of zero-work rounds behind it
+   is a PAUSE. It is still not "pending" — nothing is queued — but it must not be
+   a resting verdict, because callers gate play on that word. */
+ok("callState: a wheel stuck below the threshold is paused, not resting", () => {
   const w = wheel.readWheel(FROZEN, { odometer: 11048 });
   const st = wheel.callState({ wheel: w, stalledRounds: 0 });
-  assert.strictEqual(st.state, "resting", "a stopped wheel never grades");
+  assert.strictEqual(st.state, "stalled", "a brief stop is a pause, not a verdict");
+  assert.notStrictEqual(st.state, "resting", "must not close the game on one quiet round");
+});
+
+ok("callState: a wheel stuck at the threshold does rest", () => {
+  const w = wheel.readWheel(FROZEN, { odometer: 11048 });
+  const st = wheel.callState({ wheel: w, stalledRounds: wheel.STALL_ROUNDS_DEFAULT });
+  assert.strictEqual(st.state, "resting", "a sustained stall never grades");
 });
 
 ok("callState: no wheel data falls back to pending rather than lying", () => {

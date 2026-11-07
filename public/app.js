@@ -502,8 +502,76 @@ function roundChoppy() {
   return secs !== null && secs > 0 && secs <= CHOPPY_SECS;
 }
 
+/* Whether the server says the wheel is resting, and therefore whether calls are
+   open at all. Set once from /api/wheel and read by refreshLock(). Kept as an
+   object so the reason travels with the verdict — the player is owed an
+   explanation, not just a greyed-out button. */
+let wheelGate = { resting: false, detail: "" };
+
+/**
+ * Read the gate from the server and apply it.
+ *
+ * The server is the only authority here: the same verdict that closes the door
+ * on /api/points/submit is the one reported on /api/wheel, so the button state
+ * and the server's rule cannot drift apart. Called at boot and on a 15s tick.
+ *
+ * A failed read is NOT a resting wheel. If the fetch dies, whatever verdict is
+ * already in force stands — a network blip must not silently reopen the picker
+ * while the chain is down, and must not close it while the chain is healthy.
+ */
+async function loadWheelGate() {
+  try {
+    const w = await fetch("/api/wheel").then((r) => r.json());
+    applyWheelGate(w && w.gate);
+  } catch {}
+}
+
+/**
+ * Apply the server's gate verdict to the picker.
+ *
+ * When the wheel rests, every round's outcome is already fixed at zero work, so
+ * a call would be a bet on a settled fact rather than a prediction. The calls are
+ * disabled rather than hidden: hiding them would make the game look broken, and
+ * a player who cannot see the options cannot tell "closed because the wheel is
+ * down" from "closed for good".
+ */
+function applyWheelGate(gate) {
+  const resting = !!(gate && gate.state === "resting");
+  wheelGate = {
+    resting,
+    detail: (gate && gate.detail) || "",
+  };
+
+  const note = $("restingNote");
+  const detail = $("restingDetail");
+  if (note) note.hidden = !resting;
+  if (resting && detail && gate.detail) detail.textContent = gate.detail;
+
+  for (const btn of document.querySelectorAll(".choice")) {
+    btn.disabled = resting;
+    btn.setAttribute("aria-disabled", resting ? "true" : "false");
+  }
+
+  /* Drop any selection made before the wheel stopped, so the lock button cannot
+     stay live on a stale pick. */
+  if (resting && state.choice) {
+    state.choice = null;
+    for (const btn of document.querySelectorAll(".choice")) btn.setAttribute("aria-checked", "false");
+  }
+
+  refreshLock();
+}
+
 function refreshLock() {
   const open = roundOpen();
+  /* A resting wheel closes the door no matter what the round clock says. Say so
+     in place of the round message — otherwise the player is told to wait for a
+     round that cannot be graded. */
+  if (wheelGate.resting) {
+    $("lockBtn").disabled = true;
+    setMsg("The wheel is resting \u2014 no calls until it turns again.", "warn");
+    return;
+  }
   $("lockBtn").disabled = !(state.addr && state.choice && open);
   if (!open) {
     setMsg("Round closed \u2014 wait for the next one to call.", "warn");
@@ -529,6 +597,13 @@ function statement(round, choice) {
 
 async function lockCall() {
   if (!state.addr || !state.choice) return;
+  /* The wheel can stop between drawing the picker and the player pressing the
+     button. Re-check before spending a signature: the server would answer 409,
+     but a smart wallet would have paid for the attempt. */
+  if (wheelGate.resting) {
+    setMsg("The wheel is resting \u2014 no calls until it turns again.", "warn");
+    return;
+  }
   /* Do not spend a wallet signature on a dead round. The server rejects it and
      the result was already public, so signing would only cost the player gas
      for nothing in the case of a smart wallet. Refresh first: the page may have
@@ -591,6 +666,12 @@ async function lockCall() {
       /* Carry the server's own retry hint through, so the message can say how
          long to wait rather than making the player guess. */
       if (r.status === 429 && j && j.retryAfter) refused = "rate_limited:" + j.retryAfter;
+      /* The wheel stopped while the signature was in flight. Re-apply the gate
+         so the picker closes and the note appears, instead of leaving the player
+         with an open picker that will refuse every further attempt. */
+      if (r.status === 409 && j && j.error === "wheel_resting") {
+        applyWheelGate({ state: "resting", detail: j.detail });
+      }
     } catch {
       scored = false;
     }
@@ -605,6 +686,7 @@ async function lockCall() {
       statement_missing_call: "That signed message did not name a call \u2014 nothing was recorded.",
       duplicate: "You already called that round.",
       body_too_large: "That request was too large \u2014 nothing was recorded.",
+      wheel_resting: "The wheel is resting \u2014 its rounds have no outcome to predict, so calls are closed until it turns again.",
     };
     if (refused) {
       /* A player can only hit the limiter by locking calls far faster than the
@@ -733,6 +815,7 @@ async function renderMine() {
   try {
     wheelInfo = await fetch("/api/wheel").then((r) => r.json());
   } catch {}
+  /* The gate has its own loader and its own tick — see loadWheelGate(). */
 
   /* ask the scoreboard for its own per-round verdict before drawing */
   await loadServerRows();
@@ -1007,6 +1090,7 @@ async function loadBoard() {
   loadLive();
   loadBoard();
   loadPool();
+  loadWheelGate();
   setInterval(loadLive, 15000);
   /* the board moves only when someone locks a call, so a slower tick is
      enough — and it keeps the endpoint quiet on a page left open all day */
@@ -1014,6 +1098,12 @@ async function loadBoard() {
   /* the treasury only moves when a payout or a top-up happens: a slow tick
      is right, and it keeps the public RPC off the hot path */
   setInterval(loadPool, 60000);
+  /* The wheel can stop or restart while the page sits open, so the gate has to
+     be re-read on its own tick. Without this a player who loaded the page while
+     the wheel was turning could keep calling after it died — and a player who
+     loaded it while resting would never be told the game had resumed.
+     15s matches the live-telemetry tick, which is what decides the gate anyway. */
+  setInterval(loadWheelGate, 15000);
 
   setInterval(() => {
     const r = currentRound();

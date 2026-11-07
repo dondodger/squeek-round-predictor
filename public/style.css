@@ -348,6 +348,18 @@ body{
   transition:transform .15s,border-color .15s,background .15s,box-shadow .15s
 }
 .choice:hover{transform:translateY(-3px);border-color:#34343F}
+/* Closed because the wheel is resting, not because the player did something
+   wrong. Muted, not hidden — the options stay readable so the game still looks
+   like a game, and the note below says why. Colors come from :root only. */
+.choice:disabled{cursor:not-allowed;opacity:.5;transform:none}
+.choice:disabled:hover{transform:none;border-color:var(--line)}
+.resting-note{
+  margin:0 0 22px;padding:14px 18px;border-radius:var(--r);
+  background:var(--surface-2);border:1px solid var(--line);
+  color:var(--text);font-size:14px;line-height:1.55
+}
+.resting-note b{color:var(--gold)}
+.resting-note[hidden]{display:none}
 .choice.sel{
   border-color:var(--gold);background:rgba(255,193,70,.07);
   box-shadow:0 0 0 1px var(--gold) inset,0 12px 34px rgba(255,193,70,.14)

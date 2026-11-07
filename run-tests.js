@@ -26,6 +26,14 @@ const TESTS = [
   "test_expire", "test_blockpick", "test_wheel", "test_verdict",
   "test_streak", "test_points_api", "test_rounds", "test_waiting",
   "test_board_midround", "test_call_phase", "test_leaderboard",
+  /* the wheel gate: when a resting wheel closes the picker, and why a single
+     quiet round must not be allowed to close it */
+  "test_wheel_gate",
+  /* measured contrast for the resting state, not a visual opinion */
+  "test_resting_contrast",
+  /* the gate must reach the picker for a player with no calls yet: wiring, not
+     maths. A real bug lived here and no logic test could see it. */
+  "test_gate_wiring",
 ];
 
 const sha = (p) => (fs.existsSync(p) ? crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex") : "absent");

@@ -42,6 +42,15 @@ let wheelPrev = null;
 let wheelState = null;
 let wheelStalled = 0;
 
+/* Test hook: report the wheel as turning, whatever the chain says.
+   The gate refuses calls while the wheel rests, which is correct in production
+   and fatal to an end-to-end test: the suite would start refusing its own
+   genuine signatures the moment the real wheel stopped, and the failure would
+   look like a broken signature check. The tests are about signatures and
+   scoring, not about the wheel, so they opt out here and assert the gate itself
+   in test_wheel_gate.js. Never set this outside a test process. */
+const WHEEL_FIXTURE = process.env.SQUEER_WHEEL_UP === "1";
+
 /* Prize pool cache — see /api/reward. */
 let rewardCache = null;
 
@@ -190,6 +199,40 @@ const server = http.createServer(async (req, res) => {
     try {
       const raw = await readBody(req, MAX_BODY);
       const body = JSON.parse(raw || "{}");
+
+      /* The door is shut while the wheel rests.
+         A resting wheel produces zero work every round, and zero work grades as
+         a Nap — so a call placed now is not a prediction, it is a bet on a fact
+         that is already settled. Left open, the obvious play is to watch the
+         wheel die and then collect Nap points for free.
+         This check lives here, on the server, and not only in the UI: hiding a
+         button does not stop a POST.
+
+         The reading is fetched rather than reused when absent. A cold server, or
+         one nobody has asked for the wheel yet, has `wheelState === null` — and
+         skipping the gate in that case would leave the hole open exactly when a
+         scripted caller hits submit first without ever loading the page.
+         If the fetch fails we do NOT refuse: an unreachable explorer is not a
+         dead wheel, and closing the game on an outage would be worse than the
+         hole it is meant to plug. */
+      if (!wheelState) {
+        try {
+          await refreshWheel();
+        } catch {
+          /* leave it null — see above, outage is not a verdict */
+        }
+      }
+      if (wheelState && !WHEEL_FIXTURE) {
+        const g = wheel.callState({ stalledRounds: wheelStalled, wheel: wheelState });
+        if (g.state === "resting") {
+          return json(res, 409, {
+            error: "wheel_resting",
+            detail: g.detail,
+            stalledRounds: wheelStalled,
+          });
+        }
+      }
+
       /* Warm the round clock before validating: lockCall() needs it to tell an
          open round from a closed one, and a cold server would otherwise have no
          way to answer and would refuse every call. */
@@ -270,16 +313,23 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === "/api/wheel") {
     try {
-      return json(res, 200, await refreshWheel());
+      const w = await refreshWheel();
+      /* Carry the gate verdict so the UI can disable its buttons from the same
+         numbers the server refuses on. Computed here rather than in the client
+         so there is exactly one place that decides whether the wheel rests. */
+      const gate = wheel.callState({ stalledRounds: wheelStalled, wheel: w });
+      return json(res, 200, { ...w, gate: { state: gate.state, label: gate.label, detail: gate.detail } });
     } catch (e) {
       /* Never guess. If the chain is unreachable we say so rather than implying
-         the wheel is fine. */
+         the wheel is fine. `unknown` is NOT a resting verdict: the game stays
+         open, because an unreachable explorer says nothing about the wheel. */
       return json(res, 200, {
         turning: false,
         stuck: false,
         unknown: true,
         reason: "chain telemetry unreachable",
         error: String((e && e.message) || e),
+        gate: { state: "pending", label: "pending", detail: "Waiting on chain telemetry." },
       });
     }
   }
