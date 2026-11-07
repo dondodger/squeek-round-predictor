@@ -782,3 +782,43 @@ tr.row-tap:focus-visible{box-shadow:inset 0 0 0 2px var(--accent,#6cf)}
     font-size: 24px;
   }
 }
+
+/* ---------- season 1: the two rules, stated up top ---------- */
+
+/* Free to play. Same reason the entry fee is repeated in the payout sheet: a
+   reward pool that does not say "no entry fee" out loud reads as a buy-in. */
+.rw-free {
+  margin: 0 0 1.5rem;
+  padding: .7rem .95rem;
+  border-left: 3px solid var(--accent, #f5c451);
+  background: rgba(245, 196, 81, .07);
+  font-size: .93rem;
+  line-height: 1.5;
+  color: var(--ink, #e8e8e8);
+}
+.rw-free b { color: var(--accent, #f5c451); }
+
+/* The qualification bar. Kept as quiet prose, not another stat card — it is a
+   rule to read once, not a number to compare week to week. */
+.rw-rule {
+  margin: 0 0 1.4rem;
+  padding: .85rem 1rem;
+  border: 1px solid var(--line, rgba(255,255,255,.12));
+  border-radius: 10px;
+  background: rgba(255,255,255,.02);
+}
+.rw-rule .rw-k {
+  display: block;
+  margin-bottom: .35rem;
+  font-size: .66rem;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--muted, rgba(255,255,255,.5));
+}
+.rw-rule p {
+  margin: 0;
+  font-size: .9rem;
+  line-height: 1.55;
+  color: var(--muted, rgba(255,255,255,.72));
+}
+.rw-rule p b { color: var(--ink, #e8e8e8); }

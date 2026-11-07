@@ -887,6 +887,18 @@ async function loadPool() {
     a.title = d.treasury;
   }
   if (s.note) $("rwNote").textContent = s.note;
+
+  /* The qualification bar is rendered from the server's number, not the copy
+     written into the HTML. If the bar is ever changed in lib/reward.js the
+     page follows on the next load instead of quoting a rule the payout sheet
+     no longer applies. */
+  const rule = $("rwRule");
+  if (rule && s.minCalls) {
+    rule.innerHTML =
+      `Lock <b>${s.minCalls} or more calls</b> in the week and get <b>at least one right</b>. ` +
+      `Fewer than ${s.minCalls}, and a perfect week still does not qualify — ` +
+      `the board still ranks you, the prize does not pay you.`;
+  }
 }
 
 

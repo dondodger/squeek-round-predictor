@@ -80,22 +80,33 @@ function scoreWeek(from, to) {
      reads this sheet should never see two different orders. */
   rows.sort((a, b) => b.points - a.points || b.hits - a.hits || a.calls - b.calls);
 
-  /* A prize is not paid for merely showing up. If only one player scored, one
-     prize goes out — the pool is not "spend 150 every Monday no matter what",
-     it is "the top three who actually scored share 150". Paying 45 SQK to a
-     player with zero correct calls would make the pool look like a giveaway
-     and would be the first thing anyone questioned. */
-  return rows.filter((r) => r.points > 0);
+  /* Eligibility, checked in the same place the ranking is produced. Two bars,
+     and a player must clear both:
+       - at least minCalls calls locked inside the week. Playing once and
+         getting it right is not a week's performance, and five calls is half a
+         day of rounds — reachable by anyone who actually plays, out of reach of
+         someone who drops in for one lucky round.
+       - at least one correct call. Clearing the call bar with zero hits is
+         possible (call every round, get them all wrong) and paying that would
+         be paying for attendance.
+     Rejected players are returned separately so the sheet can say who missed
+     the bar and why, instead of silently dropping names between the board and
+     the payout. */
+  const minCalls = reward.SEASON.minCalls;
+  const eligible = rows.filter((r) => r.calls >= minCalls && r.points > 0);
+  const ineligible = rows.filter((r) => !(r.calls >= minCalls && r.points > 0));
+
+  return { eligible, ineligible, all: rows, minCalls };
 }
 
 async function main() {
   const s = reward.seasonInfo();
   const weekNo = Number(arg("week", s.week - 1)) || 1; // default: the week that closed
   const { from, to } = weekBounds(weekNo);
-  const rows = scoreWeek(from, to);
+  const { eligible, ineligible, minCalls } = scoreWeek(from, to);
   const prizes = reward.prizes();
 
-  const winners = rows.slice(0, 3).map((r, i) => {
+  const winners = eligible.slice(0, 3).map((r, i) => {
     const p = prizes[i] || { label: "-", amount: 0, pct: 0 };
     return { rank: i + 1, label: p.label, amount: p.amount, ...r };
   });
@@ -113,10 +124,17 @@ async function main() {
           treasury: reward.TREASURY,
           token: reward.SQK,
           symbol: pool.symbol || "SQK",
+          minCalls,
           total,
           treasuryBalance: pool.ok ? pool.balance : null,
           winners,
-          everyone: rows,
+          /* Everyone who played but did not clear the bar, with the reason —
+             so a payout can always be explained by name. */
+          didNotQualify: ineligible.map((r) => ({
+            ...r,
+            reason: r.points <= 0 ? "no correct calls" : `only ${r.calls} of ${minCalls} calls`,
+          })),
+          everyone: eligible,
         },
         null,
         2,
@@ -134,10 +152,18 @@ async function main() {
   console.log("");
   console.log(`  SQUEEK-ROUND · SEASON ${s.id} · WEEK ${weekNo} PAYOUT SHEET`);
   console.log(`  ${new Date(from).toISOString()}  ->  ${new Date(to).toISOString()}`);
+  console.log(`  Qualifies with ${minCalls}+ calls and at least one correct call.`);
   console.log(line);
 
   if (!winners.length) {
-    console.log("  Nobody locked a call in this window. No payout.");
+    console.log("  Nobody cleared the bar this week. No payout.");
+    if (ineligible.length) {
+      console.log("");
+      for (const r of ineligible) {
+        const why = r.points <= 0 ? "no correct calls" : `only ${r.calls} of ${minCalls} calls`;
+        console.log(`  did not qualify  ${r.address}  (${why})`);
+      }
+    }
     console.log(line);
     return;
   }
@@ -161,9 +187,19 @@ async function main() {
   } else {
     console.log(`  Treasury balance  : could not read (${pool.reason}) — check before sending`);
   }
+
+  if (ineligible.length) {
+    console.log("");
+    console.log(`  Did not qualify (${minCalls}+ calls and a correct call needed):`);
+    for (const r of ineligible) {
+      const why = r.points <= 0 ? "no correct calls" : `only ${r.calls} of ${minCalls} calls`;
+      console.log(`    ${r.address}  — ${why}`);
+    }
+  }
+
   console.log("");
   console.log("  Send from the treasury wallet. Paying is manual on purpose: read this");
-  console.log("  sheet, then send three transfers. Nothing here moves funds.");
+  console.log("  sheet, then send the transfers above. Nothing here moves funds.");
   console.log("");
 }
 

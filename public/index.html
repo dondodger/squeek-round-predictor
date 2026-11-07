@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>squeek-round — Squeekchain round predictor & live wheel data</title>
-<meta name="description" content="squeek-round reads Squeekchain's live wheel from the public API, lets you lock a call for the current 10-minute round, and scores it against SqueekCore on Sepolia. Free, no gas, no sign-up. Community project, not an official Squeekchain site." />
+<meta name="description" content="squeek-round reads Squeekchain's live wheel from the public API, lets you lock a call for the current 10-minute round, and scores it against SqueekCore on Sepolia. Free to play, no entry fee, no gas, no sign-up. Community project, not an official Squeekchain site." />
 
 <!-- Squeekchain Genesis project identity — MUST NOT CHANGE -->
 <meta name="squeekchain-project" content="2bf2a5f0-a2d3-42b5-bac6-ce24b755a787" />
@@ -174,7 +174,7 @@
   <section class="band" id="how">
     <div class="band-in">
       <h2 class="band-title">How to play</h2>
-      <p class="band-sub">No account, no deposit, nothing to sign up for. Read the live wheel, call the round before it closes, and the chain grades you.</p>
+      <p class="band-sub"><b>Free to play, no entry fee.</b> No account, no deposit, nothing to sign up for. Read the live wheel, call the round before it closes, and the chain grades you.</p>
 
       <ol class="steps">
         <li>
@@ -421,6 +421,11 @@
         Anyone can check it — no need to take our word for it.
       </p>
 
+      <!-- Free to play, stated where the money is discussed, not buried in the
+           rules. A reward pool without this line invites the reader to assume
+           there is a buy-in. -->
+      <p class="rw-free"><b>Free to play.</b> No entry fee, no deposit, no gas — a call costs a signature and nothing else.</p>
+
       <div class="rw-grid">
         <div class="rw-card">
           <span class="rw-k">Prize pool</span>
@@ -445,12 +450,25 @@
         <li><span class="rw-l">3rd</span><span class="rw-amt">30 SQK</span></li>
       </ul>
 
+      <!-- The bar, stated before the fine print rather than after it. A player
+           should be able to tell whether they qualify without doing arithmetic
+           against a table. The number comes from the API, so it cannot drift
+           away from the payout sheet. -->
+      <div class="rw-rule">
+        <span class="rw-k">To qualify</span>
+        <p id="rwRule">
+          Lock <b>5 or more calls</b> in the week and get <b>at least one right</b>.
+          Fewer than five, and a perfect week still does not qualify — the board
+          still ranks you, the prize does not pay you.
+        </p>
+      </div>
+
       <p class="rw-tr">
         <span class="rw-k">Treasury</span>
         <a id="rwAddr" class="rw-a" href="#" target="_blank" rel="noopener noreferrer">0xf8c16&hellip;3831</a>
       </p>
       <p class="rw-note" id="rwNote">
-        Season 1 rewards are Sepolia testnet SQK and carry no monetary value.
+        Rewards are Sepolia testnet SQK and carry no monetary value.
         This is a community experiment, not a paid competition.
       </p>
     </div>
