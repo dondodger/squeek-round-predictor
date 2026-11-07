@@ -111,12 +111,20 @@ function check(name, cond, extra) {
     console.log(`INFO  player   ${addr}`);
     console.log(`INFO  attacker ${otherAddr}\n`);
 
-    /* find the current round so the call is for a round the chain may settle */
+    /* The call has to be on the round the clock is currently in: a round that
+       has closed is refused (its result is already public), and a future round
+       is refused too. 999999 was neither — it was decades away, so submit()
+       correctly answered round_not_open. */
     const r0 = await req(PORT, "GET", "/proxy/status");
     const st = JSON.parse(r0.body);
     console.log("INFO  live rpm", st.measurement && st.measurement.rpmMilli);
 
-    const ROUND = 999999; // a round that will never settle -> stays pending
+    const core = await fetch("https://api.squeekchain.com/v1/core").then((r) => r.json()).catch(() => null);
+    const cfgSrc = core && core.configuration ? core.configuration : null;
+    const GEN = Number((cfgSrc && cfgSrc.genesisTimestamp) || 1793735400);
+    const DUR = Number((cfgSrc && cfgSrc.roundDuration) || 600);
+    const ROUND = Math.floor((Math.floor(Date.now() / 1000) - GEN) / DUR);   // the live round
+    console.log("INFO  live round", ROUND);
     const msg = statement(ROUND, "zoomies", addr);
 
     /* 1. genuine signature accepted */

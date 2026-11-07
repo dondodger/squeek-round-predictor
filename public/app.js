@@ -481,8 +481,37 @@ function setMsg(t, cls) {
   el.textContent = t;
   el.className = "msg " + (cls || "");
 }
+/* Is the current round still open for betting?
+   The board counts rounds from genesis; a round closes when its window ends.
+   Once it does, a call on it is not a prediction anymore — the outcome is
+   already decided — so the lock button must be dead until the next round
+   begins. Without this the page kept offering a lock on a round that the
+   server will (correctly) reject, and the player only found out after signing. */
+function roundOpen() {
+  const secs = roundEndsIn();
+  return secs !== null && secs > 0;
+}
+
+/* Inside the last stretch of a round a call is legal but can be graded the
+   instant the window shuts — which is how Don locked R479 with 33s left and
+   saw it settle a second later. Those calls are allowed, they are just a coin
+   flip on the boundary, so say so instead of letting the clock surprise him. */
+const CHOPPY_SECS = 45;
+function roundChoppy() {
+  const secs = roundEndsIn();
+  return secs !== null && secs > 0 && secs <= CHOPPY_SECS;
+}
+
 function refreshLock() {
-  $("lockBtn").disabled = !(state.addr && state.choice);
+  const open = roundOpen();
+  $("lockBtn").disabled = !(state.addr && state.choice && open);
+  if (!open) {
+    setMsg("Round closed \u2014 wait for the next one to call.", "warn");
+    return;
+  }
+  if (state.addr && state.choice && roundChoppy()) {
+    setMsg(`Careful: this round closes in ${roundEndsIn()}s \u2014 your call is graded on the wheel's final reading.`, "warn");
+  }
 }
 
 function statement(round, choice) {
@@ -500,6 +529,15 @@ function statement(round, choice) {
 
 async function lockCall() {
   if (!state.addr || !state.choice) return;
+  /* Do not spend a wallet signature on a dead round. The server rejects it and
+     the result was already public, so signing would only cost the player gas
+     for nothing in the case of a smart wallet. Refresh first: the page may have
+     been sitting open across a round boundary. */
+  if (!roundOpen()) {
+    setMsg("This round just closed \u2014 wait for the next one to call.", "warn");
+    refreshLock();
+    return;
+  }
   const round = currentRound();
   /* Freeze BOTH the round and the call the instant the player asks to lock.
      The wallet prompt can sit open for as long as the player likes, and the
@@ -533,6 +571,7 @@ async function lockCall() {
        fails the lock still stands locally — it just is not scored yet, and the
        message says so rather than pretending it worked. */
     let scored = false;
+    let refused = null;
     try {
       const r = await fetch("/api/points/submit", {
         method: "POST",
@@ -548,9 +587,25 @@ async function lockCall() {
       const j = await r.json();
       scored = r.ok && j.ok === true;
       if (scored && j.profile) applyProfile(j.profile);
-      else if (!r.ok) setMsg(`Locked locally, but not scored (${j.error || r.status}).`, "warn");
+      else if (!r.ok) refused = j.error || String(r.status);
     } catch {
       scored = false;
+    }
+
+    /* A refusal means the call was NOT recorded — say so plainly instead of
+       claiming a lock that the scoreboard never took. The round-boundary
+       refusals are the common ones, so name them in the player's language. */
+    const REFUSALS = {
+      round_closed: "That round is already over \u2014 its result is known, so a call on it would not be a prediction. Wait for the next round.",
+      round_not_open: "That round has not started yet. Call the round that is running.",
+      statement_call_mismatch: "The signature and the call disagreed \u2014 nothing was recorded. Try again.",
+      statement_missing_call: "That signed message did not name a call \u2014 nothing was recorded.",
+      duplicate: "You already called that round.",
+    };
+    if (refused) {
+      setMsg(REFUSALS[refused] || `Not recorded (${refused}).`, "bad");
+      renderMine();
+      return;
     }
 
     setMsg(
@@ -738,6 +793,9 @@ document.querySelectorAll(".choice").forEach((b) => {
       const s = String(secs % 60).padStart(2, "0");
       $("roundTimer").textContent = `closes in ${m}m ${s}s`;
     }
+    /* the round boundary can pass while the page sits open, so re-evaluate the
+       lock every tick — otherwise the button stays live on a finished round */
+    refreshLock();
   }, 1000);
 
   /* Disconnect forgets the wallet for this site. Reset the UI to the connect

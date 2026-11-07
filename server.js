@@ -133,7 +133,14 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/api/points/submit" && req.method === "POST") {
     try {
       const body = JSON.parse((await readBody(req)) || "{}");
-      const out = points.lockCall(body);
+      /* Warm the round clock before validating: lockCall() needs it to tell an
+         open round from a closed one, and a cold server would otherwise have no
+         way to answer and would refuse every call. */
+      await roundClock();
+      let out = points.lockCall(body);
+      if (!out.ok && out.reason === "no_clock") {
+        out = points.lockCall(body);   // clock just warmed; retry once
+      }
       if (!out.ok) return json(res, 400, { error: out.reason });
       /* grade immediately: the player should see the points the moment the
          round they called has settled, without waiting for the next visit */
@@ -253,4 +260,9 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, "127.0.0.1", () => {
   console.log(`Squeek Round Predictor listening on http://127.0.0.1:${PORT}`);
+  /* Learn the round clock at boot so the very first call after a restart can be
+     judged instead of refused. */
+  roundClock()
+    .then((c) => console.log("round clock:", c && c.genesisTimestamp ? `${c.genesisTimestamp}/${c.roundDuration}s` : "unavailable"))
+    .catch(() => {});
 });

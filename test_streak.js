@@ -76,6 +76,15 @@ ok("rubbish input is treated as no streak, not a crash", () => {
   assert.strictEqual(points.streakBonus(NaN), 0);
 });
 
+/* The grader now refuses to score a round that has not finished, so these
+   cases must use rounds the clock has already passed. Derive them from the
+   real genesis instead of picking a number that happens to look old: round 900
+   is ~70 hours in the FUTURE, which is why settle() skipped it. */
+const GENESIS = 1793735400, DUR = 600;
+points.setConfig({ genesisTimestamp: String(GENESIS), roundDuration: String(DUR) });
+const LIVE = Math.floor((Math.floor(Date.now() / 1000) - GENESIS) / DUR);
+const R = (back) => LIVE - back;   // R(1) = the round that just closed
+
 /* --- the bonus is actually wired into settle(), not just defined --- */
 ok("settle(): a 3rd consecutive hit pays 10 base + 5 bonus", () => {
   const p = {
@@ -87,12 +96,12 @@ ok("settle(): a 3rd consecutive hit pays 10 base + 5 bonus", () => {
     streak: 2, // two hits already banked
     bestStreak: 2,
     byCall: { nap: 0, jog: 0, zoomies: 0 },
-    rounds: { 900: { choice: "jog" } },
+    rounds: { [R(1)]: { choice: "jog" } },
   };
-  points.settle(p, { 900: 20 }); // jog again -> 3rd straight
-  assert.strictEqual(p.rounds[900].outcome, "jog");
+  points.settle(p, { [R(1)]: 20 }); // jog again -> 3rd straight
+  assert.strictEqual(p.rounds[R(1)].outcome, "jog");
   assert.strictEqual(p.streak, 3);
-  assert.strictEqual(p.rounds[900].award, 10 + 5, "award=" + p.rounds[900].award);
+  assert.strictEqual(p.rounds[R(1)].award, 10 + 5, "award=" + p.rounds[R(1)].award);
 });
 
 ok("settle(): a 5th consecutive hit pays 10 base + 10 bonus", () => {
@@ -105,11 +114,11 @@ ok("settle(): a 5th consecutive hit pays 10 base + 10 bonus", () => {
     streak: 4,
     bestStreak: 4,
     byCall: { nap: 0, jog: 0, zoomies: 0 },
-    rounds: { 901: { choice: "jog" } },
+    rounds: { [R(2)]: { choice: "jog" } },
   };
-  points.settle(p, { 901: 20 });
+  points.settle(p, { [R(2)]: 20 });
   assert.strictEqual(p.streak, 5);
-  assert.strictEqual(p.rounds[901].award, 20, "award=" + p.rounds[901].award);
+  assert.strictEqual(p.rounds[R(2)].award, 20, "award=" + p.rounds[R(2)].award);
 });
 
 ok("settle(): zoomies still pays its own higher base", () => {
@@ -122,10 +131,10 @@ ok("settle(): zoomies still pays its own higher base", () => {
     streak: 0,
     bestStreak: 0,
     byCall: { nap: 0, jog: 0, zoomies: 0 },
-    rounds: { 902: { choice: "zoomies" } },
+    rounds: { [R(3)]: { choice: "zoomies" } },
   };
-  points.settle(p, { 902: 48 });
-  assert.strictEqual(p.rounds[902].award, 15, "award=" + p.rounds[902].award);
+  points.settle(p, { [R(3)]: 48 });
+  assert.strictEqual(p.rounds[R(3)].award, 15, "award=" + p.rounds[R(3)].award);
 });
 
 ok("settle(): a miss resets the streak and pays nothing", () => {
@@ -138,11 +147,11 @@ ok("settle(): a miss resets the streak and pays nothing", () => {
     streak: 7,
     bestStreak: 7,
     byCall: { nap: 0, jog: 0, zoomies: 0 },
-    rounds: { 903: { choice: "jog" } },
+    rounds: { [R(4)]: { choice: "jog" } },
   };
-  points.settle(p, { 903: 0 }); // nap
+  points.settle(p, { [R(4)]: 0 }); // nap
   assert.strictEqual(p.streak, 0);
-  assert.strictEqual(p.rounds[903].award, 0);
+  assert.strictEqual(p.rounds[R(4)].award, 0);
   assert.strictEqual(p.bestStreak, 7, "best streak must survive a miss");
 });
 
