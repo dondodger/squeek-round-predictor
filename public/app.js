@@ -209,18 +209,37 @@ async function loadLive() {
        blocks[] = blocks completed beyond the settled frontier, with the
        completing work threshold and, when known, the passage that crossed it.
        Documented at docs.squeekchain.com/developers/api → "Provisional blocks".
-       It takes no parameters, so we cache-bust with a plain timestamp.
-       NOTE: three units exist and must never be conflated —
-         Round        : 600 s of wheel activity
-         Squeek block : 1e9 block units = earned work progress   <- what we show
-         Ethereum block: a Sepolia chain block                   <- separate row
-       docs.squeekchain.com/system/rounds-and-blocks */
+        It takes NO query parameters — verified: any query string returns
+        HTTP 400 {"error":"invalid_query"}. An earlier version of this line
+        cache-busted with `?t=<timestamp>`, so every poll 400'd, the whole
+        Promise.all rejected, and the page froze on stale numbers (the wheel
+        board sat on PARKED while the wheel was actually turning). Do not add
+        a cache-buster here; rely on the endpoint's own headers.
+        NOTE: three units exist and must never be conflated —
+          Round        : 600 s of wheel activity
+          Squeek block : 1e9 block units = earned work progress   <- what we show
+          Ethereum block: a Sepolia chain block                   <- separate row
+        docs.squeekchain.com/system/rounds-and-blocks */
+    /* Each endpoint is fetched through softGet so one bad response cannot blank
+       the whole panel. This is not hypothetical: a 400 from a cache-busted
+       /measurement/blocks call rejected the shared Promise.all and froze every
+       number on the page — the wheel board read PARKED while the wheel turned.
+       A single upstream hiccup must degrade one field, never the page. */
+    const softGet = (p) =>
+      fetch(`${API}${p}`)
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`${p} → HTTP ${r.status}`))))
+        .catch((e) => ({ __error: e.message }));
     const [status, core, setl, mblocks] = await Promise.all([
-      fetch(`${API}/status`).then((r) => r.json()),
-      fetch(`${API}/core`).then((r) => r.json()),
-      fetch(`${API}/settlements`).then((r) => r.json()),
-      fetch(`${API}/measurement/blocks?t=${Date.now()}`).then((r) => r.json()),
+      softGet("/status"),
+      softGet("/core"),
+      softGet("/settlements"),
+      softGet("/measurement/blocks"),
     ]);
+    if (status.__error && core.__error) {
+      /* Nothing at all came back — say so instead of showing old numbers as if
+         they were current. */
+      throw new Error(status.__error);
+    }
 
     const m = status.measurement || {};
     /* Which block height do we show? Two live candidates:
