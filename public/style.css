@@ -667,3 +667,118 @@ tr.row-tap:focus-visible{box-shadow:inset 0 0 0 2px var(--accent,#6cf)}
   #leaderboard th:nth-child(6),#leaderboard td:nth-child(6),
   #leaderboard th:nth-child(7),#leaderboard td:nth-child(7){display:none}
 }
+
+/* ---------- season 1 rewards ---------- */
+
+/* The pool block. Deliberately quieter than the board: the board is the game,
+   this is the stake. Gold here would compete with the podium for attention and
+   make the page read like a lottery rather than a scoreboard. */
+
+.band-rw {
+  background: linear-gradient(180deg, rgba(255, 214, 92, 0.04), transparent 60%);
+}
+
+.rw-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 22px 0 18px;
+}
+
+.rw-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid var(--line, #2a2f3a);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.rw-k {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+.rw-v {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.rw-s {
+  font-size: 12px;
+  opacity: 0.5;
+}
+
+/* the em-dash state: the treasury could not be read, or is empty */
+.rw-v.is-dim {
+  opacity: 0.35;
+}
+
+.rw-prizes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+}
+
+.rw-prizes li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 16px;
+  border: 1px solid var(--line, #2a2f3a);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.rw-l {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.rw-amt {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rw-tr {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+
+.rw-a {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.rw-note {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  opacity: 0.55;
+  max-width: 62ch;
+}
+
+@media (max-width: 720px) {
+  .rw-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rw-v {
+    font-size: 24px;
+  }
+}

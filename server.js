@@ -9,6 +9,7 @@ const path = require("path");
 const points = require("./lib/points");
 const rounds = require("./lib/rounds");
 const wheel = require("./lib/wheel");
+const reward = require("./lib/reward");
 
 const PORT = process.env.PORT || 8787;
 const PUB = path.join(__dirname, "public");
@@ -18,6 +19,9 @@ const API = "https://api.squeekchain.com/v1";
 let wheelPrev = null;
 let wheelState = null;
 let wheelStalled = 0;
+
+/* Prize pool cache — see /api/reward. */
+let rewardCache = null;
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -176,6 +180,17 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/api/points/hitrate") {
     await settledMap();
     return json(res, 200, rounds.hitRate());
+  }
+
+  /* The season's prize pool, read live off Sepolia. Cached for a minute: the
+     balance only moves when Don funds it or a payout goes out, and this keeps
+     the public RPC from being called on every page view. */
+  if (url.pathname === "/api/reward") {
+    const now = Date.now();
+    if (rewardCache && now - rewardCache.at < 60000) return json(res, 200, rewardCache.body);
+    const body = await reward.pool();
+    rewardCache = { at: now, body };
+    return json(res, 200, body);
   }
 
   /* The wheel's own telemetry, summarised. The UI needs this to stop labelling

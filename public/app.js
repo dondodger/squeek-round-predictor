@@ -818,8 +818,80 @@ document.querySelectorAll(".choice").forEach((b) => {
   });
 });
 
+/* ---------------- season 1 rewards ----------------
+
+   Reads /api/reward, which reads the treasury contract on Sepolia. The rule
+   here is the same one the rest of the page follows: a number we could not
+   read is never drawn as a number. If the chain is unreachable the pool says
+   so in words — printing "0 SQK" would tell the player the prize pool is empty
+   when the truth is only that we could not look.
+*/
+async function loadPool() {
+  const bal = $("rwBal");
+  if (!bal) return;
+  let d;
+  try {
+    const r = await fetch("/api/reward");
+    if (!r.ok) throw new Error("http " + r.status);
+    d = await r.json();
+  } catch (e) {
+    bal.textContent = "\u2014";
+    bal.classList.add("is-dim");
+    $("rwWeeks").textContent = "could not read the treasury";
+    return;
+  }
+
+  const sym = d.symbol || "SQK";
+
+  if (!d.ok) {
+    /* We reached our own server but not the chain. Say that, plainly. */
+    bal.textContent = "\u2014";
+    bal.classList.add("is-dim");
+    $("rwWeeks").textContent = "treasury not reachable right now";
+  } else {
+    bal.classList.remove("is-dim");
+    bal.textContent = fmt(d.balance) + " " + sym;
+    bal.classList.toggle("is-dim", d.balance === 0);
+    /* Only quote weeks once the pool can actually cover one. "0 weeks left" on
+       a funded-looking page reads like a countdown to nothing. */
+    $("rwWeeks").textContent =
+      d.balance === 0
+        ? "not funded yet"
+        : d.weeksLeft >= 1
+          ? d.weeksLeft + " week" + (d.weeksLeft === 1 ? "" : "s") + " funded"
+          : "less than one week left";
+  }
+
+  $("rwWeekly").textContent = fmt(d.weeklyPool) + " " + sym;
+
+  const s = d.season || {};
+  $("rwSeason").textContent = s.id ? "S" + s.id : "\u2014";
+  $("rwSeasonS").textContent = s.week ? "week " + s.week + " \u00b7 open" : "not started";
+
+  /* Prizes come from the server config, so the page can never disagree with
+     what the payout script will do. */
+  if (Array.isArray(d.prizes) && d.prizes.length) {
+    $("rwPrizes").innerHTML = d.prizes
+      .map(
+        (p) =>
+          `<li><span class="rw-l">${p.label}</span>` +
+          `<span class="rw-amt">${fmt(p.amount)} ${sym}</span></li>`,
+      )
+      .join("");
+  }
+
+  if (d.treasury) {
+    const a = $("rwAddr");
+    a.textContent = short(d.treasury);
+    a.href = "https://sepolia.etherscan.io/address/" + d.treasury;
+    a.title = d.treasury;
+  }
+  if (s.note) $("rwNote").textContent = s.note;
+}
+
+
 /* ---------------- the board ----------------
-  
+
    Reads /api/points/leaderboard and paints the ranking. Three rules, all of
    them about not lying to the player:
   
@@ -909,10 +981,14 @@ async function loadBoard() {
 
   loadLive();
   loadBoard();
+  loadPool();
   setInterval(loadLive, 15000);
   /* the board moves only when someone locks a call, so a slower tick is
      enough — and it keeps the endpoint quiet on a page left open all day */
   setInterval(loadBoard, 30000);
+  /* the treasury only moves when a payout or a top-up happens: a slow tick
+     is right, and it keeps the public RPC off the hot path */
+  setInterval(loadPool, 60000);
 
   setInterval(() => {
     const r = currentRound();

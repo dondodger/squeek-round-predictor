@@ -44,6 +44,7 @@
     <a href="#how">How it reads the chain</a>
     <a href="#predict">Call the round</a>
     <a href="#chain">Live data</a>
+    <a href="#pool">Rewards</a>
     <a href="#board">The board</a>
     </nav>
 
@@ -400,12 +401,61 @@
     </div>
   </section>
 
-  <!-- ================= HOW IT USES SQUEKCHAIN ================= -->
+
   <!-- The board. It sits between the live wheel and the write-up: a reader who
        has just seen the wheel move is the one who wants to know who is calling
        it right. It reads /api/points/leaderboard and paints itself, so it stays
        honest without a rebuild — an empty board shows the invitation, not a
        spinner. -->
+  <!-- ================= HOW IT USES SQUEKCHAIN ================= -->
+  <!-- Season 1. This sits directly above the board on purpose: the board says
+       who is winning, the pool says what winning is worth, and a player should
+       not have to hunt for the second half of that sentence. The balance is
+       read from the treasury contract, so the number on the page is the number
+       in the wallet — there is nothing here for us to type in by hand. -->
+  <section class="band band-rw" id="pool">
+    <div class="band-in">
+      <h2 class="band-title">Season 1 rewards</h2>
+      <p class="band-sub">
+        The pool below is held in a public treasury wallet and read straight from Sepolia.
+        Anyone can check it — no need to take our word for it.
+      </p>
+
+      <div class="rw-grid">
+        <div class="rw-card">
+          <span class="rw-k">Prize pool</span>
+          <span class="rw-v" id="rwBal">&mdash;</span>
+          <span class="rw-s" id="rwWeeks">reading the treasury&hellip;</span>
+        </div>
+        <div class="rw-card">
+          <span class="rw-k">Paid out</span>
+          <span class="rw-v" id="rwWeekly">&mdash;</span>
+          <span class="rw-s">every Monday, 00:00 UTC</span>
+        </div>
+        <div class="rw-card">
+          <span class="rw-k">Season</span>
+          <span class="rw-v" id="rwSeason">&mdash;</span>
+          <span class="rw-s" id="rwSeasonS">week 1</span>
+        </div>
+      </div>
+
+      <ul class="rw-prizes" id="rwPrizes">
+        <li><span class="rw-l">1st</span><span class="rw-amt">75 SQK</span></li>
+        <li><span class="rw-l">2nd</span><span class="rw-amt">45 SQK</span></li>
+        <li><span class="rw-l">3rd</span><span class="rw-amt">30 SQK</span></li>
+      </ul>
+
+      <p class="rw-tr">
+        <span class="rw-k">Treasury</span>
+        <a id="rwAddr" class="rw-a" href="#" target="_blank" rel="noopener noreferrer">0xf8c16&hellip;3831</a>
+      </p>
+      <p class="rw-note" id="rwNote">
+        Season 1 rewards are Sepolia testnet SQK and carry no monetary value.
+        This is a community experiment, not a paid competition.
+      </p>
+    </div>
+  </section>
+
   <section class="band band-alt" id="board">
     <div class="band-in">
       <h2 class="band-title">The board</h2>
