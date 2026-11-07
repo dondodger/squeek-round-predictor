@@ -106,6 +106,25 @@ async function settledMap() {
   }
 }
 
+/* The round clock, so settle() can refuse to grade a round that is still open.
+   The chain settles a round as soon as it has seen enough work, which can be
+   before the round's 600s window closes — so the newest settlement may name the
+   round the player is still calling, and grading against it paid out a call the
+   moment it was locked. Kept in the scoreboard db so it survives a restart. */
+let cfgCache = { at: 0, cfg: null };
+async function roundClock() {
+  if (Date.now() - cfgCache.at < 60000 && cfgCache.cfg) return cfgCache.cfg;
+  try {
+    const c = await (await fetch(`${API}/core`)).json();
+    const cfg = c.configuration || {};
+    points.setConfig(cfg);
+    cfgCache = { at: Date.now(), cfg };
+    return cfg;
+  } catch {
+    return cfgCache.cfg;
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
 
@@ -118,6 +137,7 @@ const server = http.createServer(async (req, res) => {
       if (!out.ok) return json(res, 400, { error: out.reason });
       /* grade immediately: the player should see the points the moment the
          round they called has settled, without waiting for the next visit */
+      await roundClock();
       const m = await settledMap();
       points.settle(points.player(body.address), m);
       points.save();
@@ -183,6 +203,7 @@ const server = http.createServer(async (req, res) => {
     /* grade anything already settled before answering, so the fresh grades are
        included in the explanation we send back */
     if (!prof.empty) {
+      await roundClock();
       const m = await settledMap();
       if (points.settle(points.player(addr), m)) points.save();
       /* The profile must know whether the wheel is turning, otherwise an
