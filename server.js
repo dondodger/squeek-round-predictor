@@ -159,7 +159,14 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (url.pathname === "/api/points/leaderboard") {
-    return json(res, 200, points.stats());
+    /* Named ranking. `?limit=` is clamped inside leaderboard() so a huge
+       value cannot ask the process to build a million-row array. */
+    const limit = url.searchParams.get("limit");
+    return json(
+      res,
+      200,
+      points.leaderboard(limit ? { limit: Number(limit) } : {}),
+    );
   }
 
   /* The local round archive: how often each band really fires, across every
