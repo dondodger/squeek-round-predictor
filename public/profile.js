@@ -141,14 +141,23 @@
       /* The second column is what the WHEEL DID. The third is what the player
          called. Blank columns 2-3 previously showed the outcome word alone, so
          "zoomies" next to a "jog" call read as if the player had called
-         zoomies and been paid nothing. Name the column's subject instead. */
+         zoomies and been paid nothing. Name the column's subject instead.
+
+         An ungraded call is labelled by ITS OWN round, not by the wheel's
+         present mood: a call on a round that is still running is waiting, and
+         one whose round is over but ungraded is resting only if the wheel has
+         genuinely stalled. Previously every ungraded call inherited "wheel
+         resting" the moment the wheel paused, so a brand-new call appeared to
+         join a stale pile of stuck ones. */
       const did = r.outcome
         ? r.outcome === "expired"
           ? "not graded"
           : r.outcome
-        : resting
-          ? restLabel
-          : "pending";
+        : r.waiting
+          ? "waiting"
+          : r.over
+            ? (resting ? restLabel : "awaiting grade")
+            : "pending";
       const pts = r.award === undefined || r.award === null ? "\u2014" : r.award ? "+" + r.award : "0";
       const hit = r.outcome && r.outcome === r.choice;
       const cls = r.outcome ? (hit ? "good" : "bad") : "";
