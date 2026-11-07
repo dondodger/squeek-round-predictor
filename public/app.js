@@ -203,10 +203,23 @@ function announceBlock() {
 
 async function loadLive() {
   try {
-    const [status, core, setl] = await Promise.all([
+    /* `/measurement/blocks` (schemaVersion game-block-projection.v1) is the
+       endpoint the docs point at for showing Squeek blocks as they happen:
+       anchor = last settled block, projected = latest the wheel has earned,
+       blocks[] = blocks completed beyond the settled frontier, with the
+       completing work threshold and, when known, the passage that crossed it.
+       Documented at docs.squeekchain.com/developers/api → "Provisional blocks".
+       It takes no parameters, so we cache-bust with a plain timestamp.
+       NOTE: three units exist and must never be conflated —
+         Round        : 600 s of wheel activity
+         Squeek block : 1e9 block units = earned work progress   <- what we show
+         Ethereum block: a Sepolia chain block                   <- separate row
+       docs.squeekchain.com/system/rounds-and-blocks */
+    const [status, core, setl, mblocks] = await Promise.all([
       fetch(`${API}/status`).then((r) => r.json()),
       fetch(`${API}/core`).then((r) => r.json()),
       fetch(`${API}/settlements`).then((r) => r.json()),
+      fetch(`${API}/measurement/blocks?t=${Date.now()}`).then((r) => r.json()),
     ]);
 
     const m = status.measurement || {};
@@ -222,7 +235,21 @@ async function loadLive() {
        that genuinely must come off the chain. */
     const a = (status.builder && status.builder.anchor) || {};
     const pj = (status.builder && status.builder.projected) || {};
-    const live = Number(pj.blockHeight) > Number(a.blockHeight) ? pj : a;
+    /* Prefer the provisional-block projection: its `projected` is the newest
+       block the wheel has EARNED, and it ships a freshness flag plus the
+       in-flight blocks[]. Fall back to the builder view, then the anchor. */
+    const pb = mblocks || {};
+    const live =
+      (pb.status === "available" && pb.projected && pb.projected.blockHeight
+        ? pb.projected
+        : null) ||
+      (Number(pj.blockHeight) > Number(a.blockHeight) ? pj : a);
+    /* the chain's own head, so the two units can never be confused again */
+    const sepoliaBlock = Number(
+      (core.chain && core.chain.indexedThroughBlock) ||
+        (pb.chain && pb.chain.indexedThroughBlock) ||
+        0
+    );
     const c = core.configuration || {};
     const k = core.core || {};
 
@@ -243,9 +270,13 @@ async function loadLive() {
     $("liveDot").className = "dot " + (online ? "on" : "off");
     $("liveState").textContent = online ? "live" : `stale (${m.freshness || "unknown"})`;
 
-    // hero facts
+    // hero facts. Two DIFFERENT units, labelled as such: the Squeek block is
+    // earned work progress (docs: rounds-and-blocks), the Sepolia block is the
+    // Ethereum chain head. Showing only one of them, unqualified, is how the
+    // owner came to read our counter as the Ethereum height.
     $("fRound").textContent = (state.cfg.roundDuration / 60).toFixed(0) + " min";
     $("fBlock").textContent = live.blockHeight ? fmt(live.blockHeight) : "\u2014";
+    $("fSepolia").textContent = sepoliaBlock ? fmt(sepoliaBlock) : "\u2014";
     $("fRpm").textContent = state.rpm.toFixed(2) + " rpm";
 
     // gauges — every one of these is a live API field
@@ -294,7 +325,12 @@ async function loadLive() {
     const left = Math.max(0, perBlock * (1 - pct / 100));
     $("meterLeft").textContent = left.toFixed(3) + " work left";
     $("blockProg").textContent = p.toFixed(1) + "% \u00b7 " + fmt(live.blockHeight || 0);
-    $("blockLink").textContent = "block " + (live.blockHeight || "\u2014");
+    /* This link goes to a Sepolia transaction, so it must say so. It used to
+       read "block 1999", which reads as a chain height and is what made the
+       owner think our counter had drifted from the live stream. */
+    $("blockLink").textContent = a.transactionHash
+      ? "settlement tx on Sepolia"
+      : "Squeek block " + (live.blockHeight || "\u2014");
     /* the etherscan link must point at a CONFIRMED tx, so it stays on anchor */
     $("blockLink").href = a.transactionHash
       ? "https://sepolia.etherscan.io/tx/" + a.transactionHash

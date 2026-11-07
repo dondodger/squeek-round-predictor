@@ -34,6 +34,10 @@ const TESTS = [
   /* the gate must reach the picker for a player with no calls yet: wiring, not
      maths. A real bug lived here and no logic test could see it. */
   "test_gate_wiring",
+  /* Squeek blocks, rounds and Ethereum blocks are three different units. A
+     reader took our "Block height" for the Ethereum head and concluded the page
+     had drifted from the live stream; this pins the labels apart. */
+  "test_block_sync",
 ];
 
 const sha = (p) => (fs.existsSync(p) ? crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex") : "absent");

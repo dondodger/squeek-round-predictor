@@ -97,10 +97,16 @@
         <a class="btn btn-gold" href="#predict">Lock a call</a>
         <a class="btn btn-ghost" href="#how">See how it works &rarr;</a>
         </div>
+      <!-- Two numbers that are easy to confuse, so they are separated and each
+           carries its unit: the Squeek block is earned work progress on
+           Squeekchain; the Sepolia block is the Ethereum chain head. -->
       <dl class="hero-facts">
         <div><dt>Round length</dt><dd id="fRound">10 min</dd></div>
-        <div><dt>Block height</dt><dd id="fBlock">&mdash;</dd></div>
         <div><dt>Wheel speed</dt><dd id="fRpm">&mdash;</dd></div>
+      </dl>
+      <dl class="hero-facts hero-chain">
+        <div><dt>Squeek block <span class="unit-tag">work</span></dt><dd id="fBlock">&mdash;</dd></div>
+        <div><dt>Sepolia block <span class="unit-tag">eth</span></dt><dd id="fSepolia">&mdash;</dd></div>
       </dl>
     </div>
 
@@ -154,7 +160,7 @@
           <div class="meter"><i id="meterFill"></i></div>
           <div class="meter-foot">
             <span id="meterLeft">&mdash; work left</span>
-            <a id="blockLink" href="#" target="_blank" rel="noopener">block &mdash;</a>
+            <a id="blockLink" href="#" target="_blank" rel="noopener">settlement tx &mdash;</a>
           </div>
         </div>
 
@@ -332,7 +338,7 @@
           <span class="g-note" id="distNote">millimetres, this session</span>
         </div>
         <div class="gauge">
-          <span class="g-label">Block height</span>
+          <span class="g-label">Squeek block</span>
           <b class="g-val" id="blockHeight">&mdash;</b>
           <span class="g-note" id="blockProg">&mdash; progress</span>
         </div>
@@ -400,7 +406,7 @@
       </div>
       <div class="tablewrap">
         <table id="rounds">
-          <thead><tr><th>Round</th><th>Work</th><th>Blocks</th><th>Outcome</th><th>Settlement tx</th></tr></thead>
+          <thead><tr><th>Round</th><th>Work</th><th>Squeek blocks</th><th>Outcome</th><th>Settlement tx</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>

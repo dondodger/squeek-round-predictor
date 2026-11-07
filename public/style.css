@@ -148,6 +148,20 @@ body{
 }
 .hero-facts dt{font-size:10.5px;text-transform:uppercase;letter-spacing:.9px;color:var(--dim-2);margin-bottom:5px}
 .hero-facts dd{margin:0;font:600 17px var(--mono);color:var(--gold)}
+/* The chain pair sits on their own row and each carries a unit tag, because two
+   five-or-six digit numbers side by side get misread as each other — verified:
+   a vision pass swapped them. The tag names the unit in the label itself. */
+.hero-facts.hero-chain{
+  grid-template-columns:repeat(2,1fr);max-width:520px;
+  border-top:0;padding-top:0;margin-top:16px
+}
+.hero-facts.hero-chain dt{display:flex;align-items:center;gap:7px}
+.unit-tag{
+  font:600 9px var(--mono);letter-spacing:.5px;text-transform:uppercase;
+  color:var(--ink);background:var(--dim-2);border-radius:4px;padding:2px 5px
+}
+.hero-facts.hero-chain div:nth-child(1) .unit-tag{background:var(--gold);color:var(--ink)}
+.hero-facts.hero-chain div:nth-child(2) .unit-tag{background:var(--line);color:var(--text)}
 
 /* ---------- character stage ---------- */
 .stage{
