@@ -10,10 +10,32 @@ const points = require("./lib/points");
 const rounds = require("./lib/rounds");
 const wheel = require("./lib/wheel");
 const reward = require("./lib/reward");
+const { createLimiter, clientKey } = require("./lib/ratelimit");
 
 const PORT = process.env.PORT || 8787;
 const PUB = path.join(__dirname, "public");
 const API = "https://api.squeekchain.com/v1";
+
+/* Write-path protection. Three separate limits, because they stop three
+   different things — none of them is anti-cheat (the signature check in
+   points.js is; see the note in lib/ratelimit.js).
+
+     submit  12/min per IP. A player locks at most one call per 10-minute round,
+             so 12/min is roughly 100x a real player's pace: unreachable by
+             hand, and reached by a script in seconds.
+     api     240/min per IP. Caps the read endpoints. A page load fires three
+             or four of these, and a player refreshing constantly still lands an
+             order of magnitude under.
+     body    8 KB. The largest legitimate body is a signature plus a short
+             signed statement — around 400 bytes. Refusing anything bigger stops
+             a caller from making the process buffer megabytes before we ever
+             look at the JSON.
+
+   All three are keyed per IP. A caller with a botnet is not stopped by any of
+   this; it is stopped by needing a valid signature for every accepted call. */
+const submitLimit = createLimiter({ limit: 12 });
+const apiLimit = createLimiter({ limit: 240 });
+const MAX_BODY = 8 * 1024;
 
 /* Last wheel reading, so a frozen odometer can be detected between polls. */
 let wheelPrev = null;
@@ -132,11 +154,42 @@ async function roundClock() {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
 
+  /* Read-path ceiling, applied to every /api/ route here rather than repeated
+     inside each handler. The submit route is deliberately excluded: it checks a
+     much tighter limit of its own, and letting the loose limit run first would
+     mean a spammer's first 240 submits were counted against the wrong bucket
+     and the tight limit never told the real story. */
+  if (url.pathname.startsWith("/api/") && url.pathname !== "/api/points/submit") {
+    const rl = apiLimit.check(clientKey(req));
+    if (!rl.ok) {
+      res.setHeader("retry-after", String(rl.retryAfter));
+      return json(res, 429, {
+        error: "rate_limited",
+        retryAfter: rl.retryAfter,
+        limit: rl.limit,
+      });
+    }
+  }
+
   /* ------------- scoreboard API (own data, not an upstream proxy) ------- */
 
   if (url.pathname === "/api/points/submit" && req.method === "POST") {
+    /* Rate limit first, and before reading the body: the point of the limit is
+       to not do work for a caller who is over it. The body limit below is the
+       only sane way to bound the cost of parsing an untrusted payload. */
+    const rl = submitLimit.check(clientKey(req));
+    if (!rl.ok) {
+      res.setHeader("retry-after", String(rl.retryAfter));
+      return json(res, 429, {
+        error: "rate_limited",
+        retryAfter: rl.retryAfter,
+        limit: rl.limit,
+      });
+    }
+
     try {
-      const body = JSON.parse((await readBody(req)) || "{}");
+      const raw = await readBody(req, MAX_BODY);
+      const body = JSON.parse(raw || "{}");
       /* Warm the round clock before validating: lockCall() needs it to tell an
          open round from a closed one, and a cold server would otherwise have no
          way to answer and would refuse every call. */
@@ -158,6 +211,12 @@ const server = http.createServer(async (req, res) => {
         profile: points.getProfile(body.address),
       });
     } catch (e) {
+      /* A body that never arrives is worth distinguishing from a body we
+         refuse: the first is the caller's fault, the second is malformed or
+         oversized, and conflating them made an 8 KB cap look like a bad
+         request. 413 is the honest code for the cap. */
+      if (e && e.message === "too_large")
+        return json(res, 413, { error: "body_too_large", limit: MAX_BODY });
       return json(res, 400, { error: "bad_request" });
     }
   }

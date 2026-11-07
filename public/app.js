@@ -588,6 +588,9 @@ async function lockCall() {
       scored = r.ok && j.ok === true;
       if (scored && j.profile) applyProfile(j.profile);
       else if (!r.ok) refused = j.error || String(r.status);
+      /* Carry the server's own retry hint through, so the message can say how
+         long to wait rather than making the player guess. */
+      if (r.status === 429 && j && j.retryAfter) refused = "rate_limited:" + j.retryAfter;
     } catch {
       scored = false;
     }
@@ -601,8 +604,18 @@ async function lockCall() {
       statement_call_mismatch: "The signature and the call disagreed \u2014 nothing was recorded. Try again.",
       statement_missing_call: "That signed message did not name a call \u2014 nothing was recorded.",
       duplicate: "You already called that round.",
+      body_too_large: "That request was too large \u2014 nothing was recorded.",
     };
     if (refused) {
+      /* A player can only hit the limiter by locking calls far faster than the
+         game allows, so this should be unreachable by hand. It is surfaced
+         anyway because silently dropping a legitimate call would be worse. */
+      if (String(refused).startsWith("rate_limited:")) {
+        const secs = Number(String(refused).split(":")[1]) || 60;
+        setMsg(`Too many calls in a row. Try again in ${secs}s.`, "bad");
+        renderMine();
+        return;
+      }
       setMsg(REFUSALS[refused] || `Not recorded (${refused}).`, "bad");
       renderMine();
       return;
