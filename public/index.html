@@ -44,6 +44,7 @@
     <a href="#how">How it reads the chain</a>
     <a href="#predict">Call the round</a>
     <a href="#chain">Live data</a>
+    <a href="#board">The board</a>
     </nav>
 
     <div class="top-right">
@@ -400,9 +401,50 @@
   </section>
 
   <!-- ================= HOW IT USES SQUEKCHAIN ================= -->
-  <section class="band band-alt">
+  <!-- The board. It sits between the live wheel and the write-up: a reader who
+       has just seen the wheel move is the one who wants to know who is calling
+       it right. It reads /api/points/leaderboard and paints itself, so it stays
+       honest without a rebuild — an empty board shows the invitation, not a
+       spinner. -->
+  <section class="band band-alt" id="board">
     <div class="band-in">
-      <h2 class="band-title">How this uses Squeekchain</h2>
+      <h2 class="band-title">The board</h2>
+      <p class="band-sub">
+        Every locked call, settled and scored. Ranked by points, then accuracy,
+        then fewest calls. <span id="lbMeta">&mdash;</span>
+      </p>
+
+      <div class="board-top" id="lbTop" hidden></div>
+
+      <div class="tablewrap">
+        <table id="leaderboard">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Player</th>
+              <th>Points</th>
+              <th>Hit rate</th>
+              <th>Calls</th>
+              <th>Streak</th>
+              <th>Best</th>
+            </tr>
+          </thead>
+          <tbody id="lbBody">
+            <tr><td colspan="7" class="lb-empty">Reading the board&hellip;</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="fine lb-fine">
+        Hit rate counts only calls that have been graded. A round that has not
+        closed yet is not a miss &mdash; it is still running.
+      </p>
+    </div>
+  </section>
+
+  <section class="band band-alt">
+      <div class="band-in">
+        <h2 class="band-title">How this uses Squeekchain</h2>
       <ul class="about-list">
         <li>Reads <code>/v1/status</code> for live wheel telemetry &mdash; core status, wheel speed, distance, block height and work per 1000 blocks.</li>
         <li>Reads <code>/v1/core</code> and <code>/v1/settlements</code> for round schedule, difficulty and every settled round, each linked to its settlement transaction.</li>

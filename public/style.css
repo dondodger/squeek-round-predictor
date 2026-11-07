@@ -636,3 +636,34 @@ tr.row-tap:focus-visible{box-shadow:inset 0 0 0 2px var(--accent,#6cf)}
 /* A call whose wheel has stopped: not queued, just waiting on the physical
    wheel to run again. Deliberately not red — nothing is broken. */
 .tag.wait{background:rgba(255,196,84,.14);color:#ffc454;border:1px solid rgba(255,196,84,.3)}
+
+/* ---------- the board ---------- */
+
+/* The board is a table first, a podium second. The podium only appears once
+   someone has actually scored — a gold ribbon over an empty table reads as
+   broken, not as an invitation. */
+.board-top{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin:0 0 22px}
+.board-card{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
+.board-card.lead{border-color:rgba(255,193,70,.42);background:linear-gradient(180deg,rgba(255,193,70,.07),rgba(255,193,70,0))}
+.board-card .bc-rank{display:block;font:700 11px var(--mono);letter-spacing:1.4px;color:var(--dim-2);margin-bottom:7px}
+.board-card.lead .bc-rank{color:var(--gold)}
+.board-card .bc-addr{display:block;font:600 14.5px var(--mono);color:var(--text);letter-spacing:-.2px}
+.board-card .bc-pts{display:block;font:700 26px var(--mono);color:var(--gold);line-height:1.15;margin:9px 0 2px}
+.board-card .bc-sub{display:block;font-size:11.5px;color:var(--dim-2)}
+
+#leaderboard td:first-child,#leaderboard th:first-child{width:46px}
+#leaderboard td:first-child{font:700 14px var(--mono);color:var(--dim-2)}
+#leaderboard tr.me td{background:rgba(255,193,70,.055)}
+#leaderboard tr.me td:first-child{color:var(--gold)}
+#leaderboard tr.top1 td:first-child{color:var(--gold);font-size:15px}
+.lb-addr{font-weight:600;color:var(--text)}
+.lb-pts{font-weight:700;color:var(--gold)}
+.lb-empty{text-align:center;color:var(--dim-2);padding:26px 15px !important;font-family:var(--font)}
+.lb-bar{position:relative;display:block;min-width:88px;height:6px;border-radius:999px;background:rgba(142,142,160,.16);overflow:hidden}
+.lb-bar i{position:absolute;inset:0 auto 0 0;display:block;border-radius:999px;background:var(--gold)}
+.lb-fine{margin-top:16px}
+/* 96px of table at 320px wide is the difference between a scroll and a wall. */
+@media(max-width:520px){
+  #leaderboard th:nth-child(6),#leaderboard td:nth-child(6),
+  #leaderboard th:nth-child(7),#leaderboard td:nth-child(7){display:none}
+}

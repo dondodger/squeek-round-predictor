@@ -818,11 +818,101 @@ document.querySelectorAll(".choice").forEach((b) => {
   });
 });
 
+/* ---------------- the board ----------------
+  
+   Reads /api/points/leaderboard and paints the ranking. Three rules, all of
+   them about not lying to the player:
+  
+     1. A player we have never seen is "—", not a zero. Zero points is a
+        real score; having no wallet connected is not a score at all.
+     2. Hit rate is per graded call, so an open round never reads as a miss.
+     3. The podium only appears once someone has actually scored. Gold over
+        an empty table looks broken, not inviting.
+*/
+async function loadBoard() {
+  const body = $("lbBody");
+  if (!body) return;
+  let data;
+  try {
+    const r = await fetch("/api/points/leaderboard?limit=50");
+    if (!r.ok) throw new Error("http " + r.status);
+    data = await r.json();
+  } catch (e) {
+    /* Say the read failed rather than leaving "Reading the board…" forever.
+       A board that silently stops updating is worse than one that admits it
+       could not reach the server. */
+    body.innerHTML =
+      '<tr><td colspan="7" class="lb-empty">Could not read the board. The leaderboard endpoint did not answer.</td></tr>';
+    $("lbMeta").textContent = "unavailable";
+    return;
+  }
+  
+  const rows = Array.isArray(data.leaderboard) ? data.leaderboard : [];
+  const me = state.addr ? state.addr.toLowerCase() : null;
+  const top = rows.length ? rows[0].points : 0;
+  
+  $("lbMeta").textContent = rows.length
+    ? `${data.players} player${data.players === 1 ? "" : "s"} on the board.`
+    : "no calls locked yet.";
+  
+  /* Podium: only when there is a score to celebrate. */
+  const podium = $("lbTop");
+  const scored = rows.filter((r) => r.points > 0).slice(0, 3);
+  if (scored.length) {
+    podium.hidden = false;
+    podium.innerHTML = scored
+      .map(
+        (r) =>
+          `<div class="board-card${r.rank === 1 ? " lead" : ""}">` +
+          `<span class="bc-rank">#${r.rank}${r.address === me ? " \u00b7 YOU" : ""}</span>` +
+          `<span class="bc-addr">${short(r.address)}</span>` +
+          `<span class="bc-pts">${fmt(r.points)}</span>` +
+          `<span class="bc-sub">${r.hits}/${r.scored} graded \u00b7 ${r.accuracy}%</span>` +
+          `</div>`,
+      )
+      .join("");
+  } else {
+    podium.hidden = true;
+    podium.innerHTML = "";
+  }
+  
+  if (!rows.length) {
+    body.innerHTML =
+      '<tr><td colspan="7" class="lb-empty">No calls locked yet. The first name on the board is still open.</td></tr>';
+    return;
+  }
+  
+  body.innerHTML = rows
+    .map((r) => {
+      const isMe = me && r.address.toLowerCase() === me;
+      const cls = [r.rank === 1 ? "top1" : "", isMe ? "me" : ""].filter(Boolean).join(" ");
+      const pct = top > 0 ? Math.max(3, Math.round((r.points / top) * 100)) : 0;
+      return (
+        `<tr${cls ? ` class="${cls}"` : ""}>` +
+        `<td>${r.rank}</td>` +
+        `<td><span class="lb-addr">${short(r.address)}</span></td>` +
+        `<td><span class="lb-pts">${fmt(r.points)}</span>` +
+        (pct ? `<span class="lb-bar" aria-hidden="true"><i style="width:${pct}%"></i></span>` : "") +
+        `</td>` +
+        `<td>${r.scored ? r.accuracy + "%" : "\u2014"}</td>` +
+        `<td>${r.calls}</td>` +
+        `<td>${r.streak > 0 ? r.streak : "\u2014"}</td>` +
+        `<td>${r.bestStreak > 0 ? r.bestStreak : "\u2014"}</td>` +
+        `</tr>`
+      );
+    })
+    .join("");
+}
+  
 (function boot() {
   renderRpm();
 
   loadLive();
+  loadBoard();
   setInterval(loadLive, 15000);
+  /* the board moves only when someone locks a call, so a slower tick is
+     enough — and it keeps the endpoint quiet on a page left open all day */
+  setInterval(loadBoard, 30000);
 
   setInterval(() => {
     const r = currentRound();
