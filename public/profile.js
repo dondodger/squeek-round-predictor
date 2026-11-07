@@ -133,12 +133,16 @@
     tb.innerHTML = "";
     const rows = (p.recent || []).slice(0, 20);
     if (!rows.length) {
-      tb.innerHTML = '<tr><td colspan="4" class="empty">Nothing locked yet.</td></tr>';
+      tb.innerHTML = '<tr><td colspan="5" class="empty">Nothing locked yet.</td></tr>';
       return;
     }
     for (const r of rows) {
       const tr = document.createElement("tr");
-      const wheel = r.outcome
+      /* The second column is what the WHEEL DID. The third is what the player
+         called. Blank columns 2-3 previously showed the outcome word alone, so
+         "zoomies" next to a "jog" call read as if the player had called
+         zoomies and been paid nothing. Name the column's subject instead. */
+      const did = r.outcome
         ? r.outcome === "expired"
           ? "not graded"
           : r.outcome
@@ -146,20 +150,32 @@
           ? restLabel
           : "pending";
       const pts = r.award === undefined || r.award === null ? "\u2014" : r.award ? "+" + r.award : "0";
-      const cls = r.outcome && r.outcome === r.choice ? "good" : r.outcome ? "bad" : "";
+      const hit = r.outcome && r.outcome === r.choice;
+      const cls = r.outcome ? (hit ? "good" : "bad") : "";
       /* A streak that is still alive gets its own marker, so a run is visible at
          a glance instead of having to be counted. */
-      const fire = r.streak >= 3 && r.outcome === r.choice ? '<span class="fire">\ud83d\udd25' + r.streak + "</span>" : "";
+      const fire = r.streak >= 3 && hit ? '<span class="fire">\ud83d\udd25' + r.streak + "</span>" : "";
       /* A resting call gets a hover hint so the label is explained, not just
          asserted. */
       const wheelCell =
         !r.outcome && resting
           ? '<span class="tag wait" title="' + restTitle + '">' + restLabel + "</span>"
-          : wheel;
+          : did;
+      /* Say plainly which of the two the player got wrong, and never leave a
+         blank-looking zero to be misread as a hit that paid nothing. */
+      const verdictCell = r.outcome
+        ? r.outcome === "expired"
+          ? '<span class="vmiss">window closed</span>'
+          : hit
+            ? '<span class="vhit">hit</span>' + fire
+            : '<span class="vmiss">missed</span>' +
+              '<span class="vwhy">you called ' + (r.choice || "?") + ", wheel " + did + "</span>"
+        : wheelCell;
       tr.innerHTML =
         "<td>" + r.round + "</td>" +
         '<td class="cap">' + (r.choice || "") + "</td>" +
-        '<td class="cap">' + wheelCell + fire + "</td>" +
+        '<td class="cap">' + (r.outcome && r.outcome !== "expired" ? did : wheelCell) + "</td>" +
+        '<td class="cap">' + verdictCell + "</td>" +
         '<td class="' + cls + '">' + pts + "</td>";
       if (r.outcome && r.outcome !== "expired") {
         tr.classList.add("row-tap");

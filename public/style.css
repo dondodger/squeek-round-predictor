@@ -507,6 +507,12 @@ code{background:var(--surface-2);border:1px solid var(--line);border-radius:5px;
 #profTable td.good{color:#5AE39B;font-weight:600}
 #profTable td.bad{color:var(--dim-2)}
 
+/* the verdict column: an explicit hit/miss word plus the reason a miss missed,
+   so a zero next to a correct-looking call is never read as a lost payout */
+.vhit{color:#5AE39B;font-weight:600}
+.vmiss{color:#ff8f7a;font-weight:600}
+.vwhy{display:block;margin-top:2px;font-size:11.5px;font-weight:400;color:var(--dim-2);white-space:normal}
+
 /* ---------- wallet menu (the 0x… chip + its dropdown) ---------- */
 .wallet-menu-wrap{position:relative}
 .addr-btn{
